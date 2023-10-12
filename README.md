@@ -2,6 +2,10 @@
 
 This is the firmware code for the [RAVA Device](https://github.com/gabrielguerrer/rng_rava).
 
+In addition to the source code,  the compiled firmware is available in the versions folders, where:
+ * firmware.hex includes the RNG functionality with health tests and peripherals
+ * firmware_led.hex implements the same functionality as the previous version, including LED and LAMP capabilities
+
 ## Documentation
 
 - [RAVA Firmware ‐ Installation](https://github.com/gabrielguerrer/rng_rava_firmware/wiki/RAVA-Firmware-%E2%80%90-Installation)
