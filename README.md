@@ -1,6 +1,6 @@
 # RAVA firmware
 
-This is the firmware code for the [RAVA device](https://github.com/gabrielguerrer/rng_rava).
+This is the firmware code for the [RAVA Device](https://github.com/gabrielguerrer/rng_rava).
 
 ## Documentation
 
@@ -9,9 +9,9 @@ This is the firmware code for the [RAVA device](https://github.com/gabrielguerre
 
 ## Associated projects
 
-- [RAVA device](https://github.com/gabrielguerrer/rng_rava)
-- [RAVA's Python Driver](https://github.com/gabrielguerrer/rng_rava_driver_py)
-- [RAVA's Python Diagnostics Tool](https://github.com/gabrielguerrer/rng_rava_diagnostics_py)
+- [RAVA Device](https://github.com/gabrielguerrer/rng_rava)
+- [RAVA Python Driver](https://github.com/gabrielguerrer/rng_rava_driver_py)
+- [RAVA Python Diagnostics Tool](https://github.com/gabrielguerrer/rng_rava_diagnostics_py)
 
 ## Contact
 
