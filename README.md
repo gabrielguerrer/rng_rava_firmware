@@ -20,3 +20,5 @@ In addition to the source code,  the compiled firmware is available in the versi
 ## Contact
 
 gabrielguerrer [at] gmail [dot] com
+
+![RAVA logo](https://github.com/gabrielguerrer/rng_rava/blob/main/images/rng_rava_logo.png)
