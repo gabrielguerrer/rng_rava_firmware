@@ -46,9 +46,9 @@ bool RNG::validate_sampling_interval(uint8_t sampling_interval_us)
   return true;
 }
 
-bool RNG::validate_bit_type(uint8_t bit_type)
+bool RNG::validate_bit_source(uint8_t bit_source)
 {
-  if ((bit_type == 0) || (bit_type > 5))
+  if ((bit_source == 0) || (bit_source > 5))
     return false;
   return true;
 }
@@ -166,26 +166,26 @@ void RNG::send_pulse_counts(uint32_t n_counts)
   read_finalize();
 }
 
-void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_type)
+void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
 { 
   uint8_t rnd[2];
 
-  // BIT_TYPE_AB_RND
-  if (bit_type == BIT_TYPE_AB_RND) {
+  // BIT_SRC_AB_RND
+  if (bit_source == BIT_SRC_AB_RND) {
 
     // Generate one bit from each channel 
-    uint8_t bit_type_temp = BIT_TYPE_AB;
-    read_bit(&rnd[0], &rnd[1], bit_type_temp);
+    uint8_t bit_source_temp = BIT_SRC_AB;
+    read_bit(&rnd[0], &rnd[1], bit_source_temp);
 
     // XOR the result and define the channel
     if (rnd[0] ^ rnd[1])
-      bit_type = BIT_TYPE_B;
+      bit_source = BIT_SRC_B;
     else
-      bit_type = BIT_TYPE_A;
+      bit_source = BIT_SRC_A;
   }
 
-  // BIT_TYPE_A
-  if (bit_type == BIT_TYPE_A) 
+  // BIT_SRC_A
+  if (bit_source == BIT_SRC_A) 
   {
     // Reset counters
     timer1->reset_counter();
@@ -200,8 +200,8 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_type)
     *rng_a = rnd[0] & 1;    
   }
 
-  // BIT_TYPE_B
-  else if (bit_type == BIT_TYPE_B) 
+  // BIT_SRC_B
+  else if (bit_source == BIT_SRC_B) 
   {
     // Reset counters
     timer0->reset_counter();
@@ -216,7 +216,7 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_type)
     *rng_a = rnd[0] & 1;
   }
 
-  // BIT_TYPE_AB, BIT_TYPE_AB_XOR
+  // BIT_SRC_AB, BIT_SRC_AB_XOR
   else  
   {
     // Reset counters
@@ -234,15 +234,15 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_type)
     *rng_a = rnd[0] & 1;
     *rng_b = rnd[1] & 1;
 
-    if (bit_type == BIT_TYPE_AB_XOR)
+    if (bit_source == BIT_SRC_AB_XOR)
       *rng_a ^= *rng_b;
   }  
 }
 
-void RNG::send_bits(uint8_t bit_type)
+void RNG::send_bits(uint8_t bit_source)
 {
-  // Validate bit_type
-  if (!validate_bit_type(bit_type))
+  // Validate bit_source
+  if (!validate_bit_source(bit_source))
     return;
   
   // Initialize
@@ -254,14 +254,14 @@ void RNG::send_bits(uint8_t bit_type)
 
   // Read random bit
   uint8_t rnd[2];
-  read_bit(&rnd[0], &rnd[1], bit_type); 
+  read_bit(&rnd[0], &rnd[1], bit_source); 
 
   // Timing debug
   if (d1_timing_debug)
     PORTE = 0; // PE6 (D1) output = LO
 
   // Send bits
-  comm->write_msg_header(COMM_RNG_BITS, bit_type, rnd[0], rnd[1]);
+  comm->write_msg_header(COMM_RNG_BITS, bit_source, rnd[0], rnd[1]);
 
   // Finalize
   read_finalize();

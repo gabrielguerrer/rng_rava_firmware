@@ -395,9 +395,9 @@ void task_serial_read(COMM* comm_task)
     }
 
     case COMM_RNG_BITS: {              
-      uint8_t bit_type = msg_bytes[1];
+      uint8_t bit_source = msg_bytes[1];
 
-      rng->send_bits(bit_type);
+      rng->send_bits(bit_source);
       break;
     }
 

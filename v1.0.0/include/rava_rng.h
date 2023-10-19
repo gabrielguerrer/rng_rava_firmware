@@ -98,12 +98,12 @@ driver level by using random bytes as input.
 
 #include <stdint.h>
 
-enum RNG_BIT_TYPE {
-  BIT_TYPE_AB=1,  
-  BIT_TYPE_A,
-  BIT_TYPE_B,
-  BIT_TYPE_AB_XOR,
-  BIT_TYPE_AB_RND
+enum RNG_BIT_SOURCE {
+  BIT_SRC_AB=1,  
+  BIT_SRC_A,
+  BIT_SRC_B,
+  BIT_SRC_AB_XOR,
+  BIT_SRC_AB_RND
   };
 
 enum RNG_BYTE_POST_PROCESSING {
@@ -127,7 +127,7 @@ class RNG
     RNG();
 
     bool validate_sampling_interval(uint8_t sampling_interval_us);
-    bool validate_bit_type(uint8_t bit_type);
+    bool validate_bit_source(uint8_t bit_source);
     bool validate_postproc_id(uint8_t postproc_id);
     bool validate_byte_stream_delay(uint16_t delay_ms);
 
@@ -143,8 +143,8 @@ class RNG
     void read_pulse_count(uint8_t* rng_a, uint8_t* rng_b);
     void send_pulse_counts(uint32_t n_counts);
 
-    void read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_type);
-    void send_bits(uint8_t bit_type);
+    void read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source);
+    void send_bits(uint8_t bit_source);
 
     void read_byte(uint8_t* rng_a, uint8_t* rng_b);
     void read_byte_pp_xor(uint8_t* rng_a, uint8_t* rng_b);
