@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <math.h>
@@ -38,9 +38,9 @@ float unpack_float(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 uint8_t nibble_to_hex(uint8_t n)
 {
     if (n <= 9)
-      return '0' + n; 
-    else 
-      return 'a' + (n - 10); 
+      return '0' + n;
+    else
+      return 'a' + (n - 10);
 }
 
 uint8_t byte_rol(uint8_t b, uint8_t n) {
@@ -51,9 +51,9 @@ uint8_t hamming_weight_8(uint8_t b) {
   // Count the ammount of 1 bits in the byte b
   uint8_t n;
   for (n = 0; b; n++)
-    b &= b - 1; // clear the least significant bit set  
+    b &= b - 1; // clear the least significant bit set
   return n;
-} 
+}
 
 uint32_t bit_mask_1s(uint8_t n1s)
 {
@@ -64,16 +64,16 @@ uint32_t bit_mask_1s(uint8_t n1s)
   return res;
 }
 
-void array_init(uint16_t* a, uint8_t a_size, uint16_t value) {  
+void array_init(uint16_t* a, uint8_t a_size, uint16_t value) {
   for (uint8_t i = 0; i < a_size; i++) {
     a[i] = value;
-  }  
+  }
 }
 
-void array_init(uint8_t* a, uint8_t a_size, uint8_t value) {  
+void array_init(uint8_t* a, uint8_t a_size, uint8_t value) {
   for (uint8_t i = 0; i < a_size; i++) {
     a[i] = value;
-  }  
+  }
 }
 
 uint32_t array_sum(uint8_t* a, uint8_t a_size) {
@@ -87,7 +87,7 @@ uint32_t array_sum(uint8_t* a, uint8_t a_size) {
 float normal_sf(float z) {
   // Normal curve survival function : sf(z) = 1 - cdf(z)
   float zsq = z * z;
-  float p = 0.5 * sqrt( 1 - 1. / 30 * ( 7 * exp(-zsq / 2) + 16 * exp(-zsq * (2 - sqrt(2))) 
+  float p = 0.5 * sqrt( 1 - 1. / 30 * ( 7 * exp(-zsq / 2) + 16 * exp(-zsq * (2 - sqrt(2)))
             + ( 7 + 1. / 4 * 3.141592653589793 * zsq ) * exp(-zsq) ) );
   if (z < 0)
     p = 0.5 + p;

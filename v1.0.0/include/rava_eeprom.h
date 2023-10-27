@@ -1,12 +1,12 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-The EEPROM class facilitates the storage and retrieval of data in permanent 
-memory. This file specifies the EEPROM addresses where stored information is 
+The EEPROM class facilitates the storage and retrieval of data in permanent
+memory. This file specifies the EEPROM addresses where stored information is
 located and provides methods for reading, updating, and transmitting this data.
 */
 

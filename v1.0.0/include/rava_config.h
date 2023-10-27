@@ -1,21 +1,21 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
 The configuration file serves three primary purposes by defining:
 
-1. USB parameters with the values used by the operating system to identify the 
+1. USB parameters with the values used by the operating system to identify the
 device.
 
-2. Preprocessor directives enabling specific capabilities. By deactivating 
-unnecessary functionalities, users can reduce flash memory consumption. The 
-space optimization allows the users to incorporate additional code addressing 
+2. Preprocessor directives enabling specific capabilities. By deactivating
+unnecessary functionalities, users can reduce flash memory consumption. The
+space optimization allows the users to incorporate additional code addressing
 their specific needs.
 
-3. Default EEPROM parameter values. Those values are used to repopulate the 
+3. Default EEPROM parameter values. Those values are used to repopulate the
 EEPROM in the event of a memory reset.
 */
 
@@ -40,10 +40,10 @@ EEPROM in the event of a memory reset.
 #define RAVA_USB_PID 0x4884
 
 /////////////////////////////
-// FIRMWARE 
+// FIRMWARE
 
 // VERSION
-# define FIRMWARE_VERSION_MAJOR 1 
+# define FIRMWARE_VERSION_MAJOR 1
 # define FIRMWARE_VERSION_MINOR 0
 # define FIRMWARE_VERSION_PATCH 0
 

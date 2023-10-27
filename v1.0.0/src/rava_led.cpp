@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <rava_led.h>
@@ -26,7 +26,7 @@ intensity_dim(LED_INTENSITY_DIM)
 void LED::set_color(uint8_t hue, uint8_t intensity)
 {
   // Make intensity 128 appear half as bright as intensity 255?
-  if (intensity_dim) {  
+  if (intensity_dim) {
     uint8_t intensity_show = intensity == 0 ? 0 : dim8_raw(127 + (intensity+1)/2);
     FastLED.showColor(CHSV(hue, 255, intensity_show));
   }
@@ -43,13 +43,13 @@ void LED::set_intensity(uint8_t intensity)
     return;
 
   // Make intensity 128 appear half as bright as intensity 255?
-  if (intensity_dim) {  
+  if (intensity_dim) {
     uint8_t intensity_show = intensity == 0 ? 0 : dim8_raw(127 + (intensity+1)/2);
     FastLED.showColor(CHSV(m_hue, 255, intensity_show));
   }
   else
     FastLED.showColor(CHSV(m_hue, 255, intensity));
-  
+
   m_intensity = intensity;
 }
 
@@ -108,10 +108,10 @@ void LED::fade_color(uint16_t hue_target, uint16_t duration_ms, bool find_shorte
     int16_t hue_delta1 = hue_target + 256 - m_hue;
     int16_t hue_delta2 = hue_target - 256 - m_hue;
     if ((abs(hue_delta1) <= abs(hue_delta)) && (abs(hue_delta1) < abs(hue_delta2))) {
-      hue_delta = hue_delta1;        
+      hue_delta = hue_delta1;
     }
     else if ((abs(hue_delta2) <= abs(hue_delta)) && (abs(hue_delta2) < abs(hue_delta1))) {
-      hue_delta = hue_delta2;        
+      hue_delta = hue_delta2;
     }
   }
 
@@ -151,7 +151,7 @@ void LED::fade_process()
   if (f_intensity.fading)
   {
     if (f_intensity.tick_counter < f_intensity.t_delta_ticks) {
-      float intensity = (float)f_intensity.tick_counter / f_intensity.t_delta_ticks * f_intensity.val_delta 
+      float intensity = (float)f_intensity.tick_counter / f_intensity.t_delta_ticks * f_intensity.val_delta
                         + f_intensity.val_init;
       uint8_t intensity_int = (uint8_t)round(intensity);
       set_color(m_hue, intensity_int);
@@ -163,7 +163,7 @@ void LED::fade_process()
   }
 
   // Color fade
-  if (f_color.fading)   
+  if (f_color.fading)
   {
     if (f_color.tick_counter < f_color.t_delta_ticks) {
       float _color = (float)f_color.tick_counter / f_color.t_delta_ticks * f_color.val_delta + f_color.val_init;
@@ -174,7 +174,7 @@ void LED::fade_process()
       f_color.fading = false;
       set_color(f_color.val_tgt, m_intensity);
     }
-  } 
+  }
 }
 
 void LED::send_status()

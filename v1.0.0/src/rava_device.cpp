@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <avr/boot.h>
@@ -17,17 +17,17 @@ extern EEPROM* eeprom;
 extern ADC_COMP* adc_comp;
 
 void DEVICE::get_serial_number(uint8_t* const sn)
-{      
+{
   uint8_t b = 0;
 
   // Set prefix byte
   // Convert 6 first bytes to a single hashed one (7th byte is always the same = 15)
-  for(uint8_t i = 14; i < 20; i++) {        
+  for(uint8_t i = 14; i < 20; i++) {
     b ^= boot_signature_byte_get(i);
-    }  
+    }
   sn[0] = nibble_to_hex(b >> 4);
   sn[1] = nibble_to_hex(b & 0xF);
-  
+
   // Set last 3 bytes
   b = boot_signature_byte_get(21);
   sn[2] = nibble_to_hex(b >> 4);
@@ -78,11 +78,11 @@ int16_t DEVICE::get_free_ram()
 {
   extern int16_t __heap_start, *__brkval;
   int16_t v;
-  return (int16_t)&v - (__brkval == 0 ? (int16_t)&__heap_start : (int16_t) __brkval);  
+  return (int16_t)&v - (__brkval == 0 ? (int16_t)&__heap_start : (int16_t) __brkval);
 }
 
 void DEVICE::send_free_ram()
 {
   int16_t free_ram = get_free_ram();
-  comm->write_msg_header(COMM_DEVICE_FREE_RAM, (uint16_t)free_ram); 
+  comm->write_msg_header(COMM_DEVICE_FREE_RAM, (uint16_t)free_ram);
 }

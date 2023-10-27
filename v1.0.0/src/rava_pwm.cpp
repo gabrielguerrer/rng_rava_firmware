@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <rava_pwm.h>
@@ -43,7 +43,7 @@ void PWM::setup(bool eeprom_values, uint8_t freq_id, uint8_t duty)
 
   // Find freq_prescaler, duty_max, and top
   uint8_t freq_prescaler, top, duty_max;
-  
+
   if (freq_id == PWM_FREQ_30_KHZ) {
     freq_prescaler = TIMER4_CLK_DIV_8;
     duty_max = 25;
@@ -69,7 +69,7 @@ void PWM::setup(bool eeprom_values, uint8_t freq_id, uint8_t duty)
     duty_max = 50;
     top = 159;
   }
- 
+
   // Configure Timer4
   if (duty <= duty_max) {
     m_freq_id = freq_id;

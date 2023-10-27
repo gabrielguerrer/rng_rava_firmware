@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <rava_health.h>
@@ -34,27 +34,27 @@ HEALTH_STARTUP::HEALTH_STARTUP()
   bias_n_bytes = H_STARTUP_BIASCHISQ_NBYTES;
   bias_abs_treshold = H_STARTUP_BIAS_PERC_TRESHOLD;
   chisq_max_treshold = H_STARTUP_CHISQ_MAX_TRESHOLD;
-  
+
   pc_n_counts = H_STARTUP_PULSE_COUNT_N;
   pc_avg_diff_min = H_STARTUP_PULSE_COUNT_AVG_DIFF_MIN;
 }
 
 void HEALTH_STARTUP::run_tests()
-{   
+{
   bool success = true;
 
   // Pulse count average
   if (led)
     led->set_color(COLOR_PURPLE, 127);  // Purple color mid intensity during test
 
-  success &= test_pulse_count_average();  
-    
+  success &= test_pulse_count_average();
+
   // Bias
   if (led)
     led->set_color(COLOR_PURPLE, 255);  // Purple color high intensity during test
-  
+
   success &= test_bias();
-  
+
   // Inform result by light
   if (led) {
     if (success)
@@ -71,45 +71,49 @@ bool HEALTH_STARTUP::get_tests_result()
   return result;
 }
 
-void HEALTH_STARTUP::send_results() 
+void HEALTH_STARTUP::send_results()
 {
-  uint8_t pc_avg_n_bytes = 25;
+  uint8_t pc_avg_n_bytes = 13;
+  uint8_t pc_diff_avg_n_bytes = 13;
   uint8_t bias_bit_n_bytes = 13;
   uint8_t bias_byte_n_bytes = 13;
-  comm->write_msg_header(COMM_HEALTH_STARTUP_RESULTS, (uint8_t)result, pc_avg_n_bytes, bias_bit_n_bytes, 
-                         bias_byte_n_bytes);
-  
-  // Pulse_count
+  comm->write_msg_header(COMM_HEALTH_STARTUP_RESULTS, (uint8_t)result, pc_avg_n_bytes, pc_diff_avg_n_bytes,
+                         bias_bit_n_bytes, bias_byte_n_bytes);
+
+  // Pulse Count
+  comm->write((uint8_t)pc_result);
   comm->write(pc_avg_a);
   comm->write(pc_avg_b);
-  comm->write(pc_avg_dif_a);
-  comm->write(pc_avg_dif_b);
   comm->write(pc_avg_min);
+
+  // Pulse Count Difference
+  comm->write((uint8_t)pc_diff_result);
+  comm->write(pc_avg_diff_a);
+  comm->write(pc_avg_diff_b);
   comm->write(pc_avg_diff_min);
-  comm->write((uint8_t)pc_result);
 
   // Bit bias
+  comm->write((uint8_t)bias_result);
   comm->write(bias_a);
   comm->write(bias_b);
   comm->write(bias_abs_treshold);
-  comm->write((uint8_t)bias_result);
 
   // Byte bias
+  comm->write((uint8_t)chisq_result);
   comm->write(chisq_a);
   comm->write(chisq_b);
   comm->write(chisq_max_treshold);
-  comm->write((uint8_t)chisq_result);
 }
 
 bool HEALTH_STARTUP::test_pulse_count_average()
 {
-  uint8_t count_a, count_b;  
-  uint8_t count_a_prev, count_b_prev;  
-  uint32_t pc_a=0, pc_b=0; 
-  uint32_t pc_dif_a=0, pc_dif_b=0;
+  uint8_t count_a, count_b;
+  uint8_t count_a_prev, count_b_prev;
+  uint32_t pc_a=0, pc_b=0;
+  uint32_t pc_diff_a=0, pc_diff_b=0;
 
   rng->read_initialize();
-  
+
   // Loop
   for (uint32_t i = 0; i < pc_n_counts; i++) {
 
@@ -118,15 +122,15 @@ bool HEALTH_STARTUP::test_pulse_count_average()
 
     // Compute
     pc_a += count_a;
-    pc_b += count_b;    
+    pc_b += count_b;
 
     if (i == 0) {
       count_a_prev = count_a;
       count_b_prev = count_b;
     }
     else {
-      pc_dif_a += abs(count_a - count_a_prev);
-      pc_dif_b += abs(count_b - count_b_prev);
+      pc_diff_a += abs(count_a - count_a_prev);
+      pc_diff_b += abs(count_b - count_b_prev);
 
       count_a_prev = count_a;
       count_b_prev = count_b;
@@ -138,34 +142,38 @@ bool HEALTH_STARTUP::test_pulse_count_average()
   // Compute averages
   pc_avg_a = (float)pc_a / pc_n_counts;
   pc_avg_b = (float)pc_b / pc_n_counts;
-  
-  pc_avg_dif_a = (float)pc_dif_a / (pc_n_counts - 1);
-  pc_avg_dif_b = (float)pc_dif_b / (pc_n_counts - 1);
+
+  pc_avg_diff_a = (float)pc_diff_a / (pc_n_counts - 1);
+  pc_avg_diff_b = (float)pc_diff_b / (pc_n_counts - 1);
 
   // Test
   pc_avg_min = (float)rng->get_sampling_interval() * H_STARTUP_PULSE_COUNT_AVG_PER_SAMPLING_INTERVAL;
 
-  if ((pc_avg_a >= pc_avg_min) && 
-      (pc_avg_b >= pc_avg_min) &&
-      (pc_avg_dif_a > pc_avg_diff_min) &&
-      (pc_avg_dif_b > pc_avg_diff_min)) {
-
+  if ((pc_avg_a >= pc_avg_min) &&
+      (pc_avg_b >= pc_avg_min)) {
     pc_result = true;
     }
   else
     pc_result = false;
 
-  return pc_result;
+  if ((pc_avg_diff_a > pc_avg_diff_min) &&
+      (pc_avg_diff_b > pc_avg_diff_min)) {
+    pc_diff_result = true;
+    }
+  else
+    pc_diff_result = false;
+
+  return pc_result && pc_diff_result;
 }
 
 bool HEALTH_STARTUP::test_bias()
-{  
+{
   // Bit bias
   uint8_t rnd_a, rnd_b;
-  uint32_t n1s_a=0, n1s_b=0;  
+  uint32_t n1s_a=0, n1s_b=0;
   uint8_t freq_a[256] = {0};
   uint8_t freq_b[256] = {0};
- 
+
   rng->read_initialize();
 
   // Loop
@@ -188,9 +196,9 @@ bool HEALTH_STARTUP::test_bias()
   bias_b = ((float)n1s_b / (8*bias_n_bytes) - 0.5) * 100;
 
   // Test
-  if ((abs(bias_a) <= bias_abs_treshold) && 
+  if ((abs(bias_a) <= bias_abs_treshold) &&
       (abs(bias_b) <= bias_abs_treshold)) {
-    
+
     bias_result = true;
     }
 
@@ -212,9 +220,9 @@ bool HEALTH_STARTUP::test_bias()
   }
 
   // Test
-  if ((chisq_a < chisq_max_treshold) && 
+  if ((chisq_a < chisq_max_treshold) &&
       (chisq_b < chisq_max_treshold)) {
-    
+
     chisq_result = true;
     }
   else
@@ -231,7 +239,7 @@ HEALTH_CONTINUOUS::HEALTH_CONTINUOUS()
 }
 
 void HEALTH_CONTINUOUS::run_tests(const uint8_t* const rng_a, const uint8_t* const rng_b)
-{  
+{
   // Clone rng data ; the original data cannot be modified
   m_rng_a = *rng_a;
   m_rng_b = *rng_b;
@@ -239,6 +247,15 @@ void HEALTH_CONTINUOUS::run_tests(const uint8_t* const rng_a, const uint8_t* con
   // Run tests
   nist_repetition_count();
   nist_adaptive_proportion();
+}
+
+void HEALTH_CONTINUOUS::reset_errors()
+{
+  nrc_error_a = 0;
+  nrc_error_b = 0;
+
+  nap_error_a = 0;
+  nap_error_b = 0;
 }
 
 void HEALTH_CONTINUOUS::send_errors()
@@ -249,21 +266,16 @@ void HEALTH_CONTINUOUS::send_errors()
   comm->write(nrc_error_a);
   comm->write(nrc_error_b);
 
-  // Reset errors
-  nrc_error_a = 0;
-  nrc_error_b = 0;
-
   // Adaptive proportion
   comm->write(nap_error_a);
   comm->write(nap_error_b);
-  
+
   // Reset errors
-  nap_error_a = 0;
-  nap_error_b = 0;
+  reset_errors();
 }
 
 void HEALTH_CONTINUOUS::nist_repetition_count()
-{  
+{
   // RNG A
   if (m_rng_a == m_rng_prev_a) {
     nrc_counter_a++;
@@ -275,11 +287,11 @@ void HEALTH_CONTINUOUS::nist_repetition_count()
     m_rng_prev_a = m_rng_a;
     nrc_counter_a = 1;
     }
-  
+
   // RNG B
   if (m_rng_b == m_rng_prev_b) {
     nrc_counter_b++;
-    
+
     if (nrc_counter_b >= nrc_cutoff)
       nrc_error_b++; // Count error on rng_b
   }
@@ -303,7 +315,7 @@ void HEALTH_CONTINUOUS::nist_adaptive_proportion()
 
       if (nap_counter_a == nap_cutoff)
         nap_error_a++; // Count error on rng_a
-    }    
+    }
 
     nap_iter_a++;
     if (nap_iter_a == H_CONTINUOUS_ADAPTIVE_PROPORTION_W)
@@ -322,7 +334,7 @@ void HEALTH_CONTINUOUS::nist_adaptive_proportion()
 
       if (nap_counter_b == nap_cutoff)
         nap_error_b++; // Count error on rng_b
-    }    
+    }
 
     nap_iter_b++;
     if (nap_iter_b == H_CONTINUOUS_ADAPTIVE_PROPORTION_W)

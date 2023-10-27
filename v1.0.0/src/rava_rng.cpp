@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <Arduino.h>
@@ -60,9 +60,23 @@ bool RNG::validate_postproc_id(uint8_t postproc_id)
   return true;
 }
 
-bool RNG::validate_byte_stream_delay(uint16_t delay_ms)
+bool RNG::validate_byte_stream_delay(uint16_t interval_ms)
 {
-  if (delay_ms > TIMER3_MAXIMUM_DELAY_MS)
+  if (interval_ms > TIMER3_MAXIMUM_DELAY_MS)
+    return false;
+  return true;
+}
+
+bool RNG::validate_int_delta(uint8_t int_delta)
+{
+  if (int_delta < 2)
+    return false;
+  return true;
+}
+
+bool RNG::validate_int_delta(uint16_t int_delta)
+{
+  if (int_delta < 2)
     return false;
   return true;
 }
@@ -106,24 +120,24 @@ void RNG::setup_timing_debug_d1(bool on)
 void RNG::read_initialize()
 {
   // Disable MCU interrupts during measurements
-  cli(); 
+  cli();
 
-  // Timer0 to external clock during measurements 
-  timer0->clock_external(); 
+  // Timer0 to external clock during measurements
+  timer0->clock_external();
 }
 
 void RNG::read_finalize()
 {
   // Re-enable MCU interrupts
-  sei(); 
+  sei();
 
   // Timer0 to internal clock
-  timer0->clock_internal(); 
+  timer0->clock_internal();
 }
 
 void RNG::read_pulse_count(uint8_t* rng_a, uint8_t* rng_b)
-{ 
-  // Reset counters  
+{
+  // Reset counters
   timer1->reset_counter();
   timer0->reset_counter();
 
@@ -139,20 +153,20 @@ void RNG::send_pulse_counts(uint32_t n_counts)
 {
   // Send header
   comm->write_msg_header(COMM_RNG_PULSE_COUNTS, n_counts);
-  
+
   // Initialize
-  read_initialize(); 
+  read_initialize();
 
   // Loop, measure, and write pulse counts
   uint8_t pc[2];
   for (uint32_t i = 0; i < n_counts; i++) {
-    
+
     // Timing debug
     if (d1_timing_debug)
       PORTE = 0b01000000; // PE6 (D1) output = HI
 
     // Read pulse counts
-    read_pulse_count(&pc[0], &pc[1]); 
+    read_pulse_count(&pc[0], &pc[1]);
 
     // Timing debug
     if (d1_timing_debug)
@@ -167,13 +181,13 @@ void RNG::send_pulse_counts(uint32_t n_counts)
 }
 
 void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
-{ 
+{
   uint8_t rnd[2];
 
   // BIT_SRC_AB_RND
   if (bit_source == BIT_SRC_AB_RND) {
 
-    // Generate one bit from each channel 
+    // Generate one bit from each channel
     uint8_t bit_source_temp = BIT_SRC_AB;
     read_bit(&rnd[0], &rnd[1], bit_source_temp);
 
@@ -185,7 +199,7 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
   }
 
   // BIT_SRC_A
-  if (bit_source == BIT_SRC_A) 
+  if (bit_source == BIT_SRC_A)
   {
     // Reset counters
     timer1->reset_counter();
@@ -197,11 +211,11 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
     rnd[0] = timer1->read_counter();
 
     // Bit value derives from count parity
-    *rng_a = rnd[0] & 1;    
+    *rng_a = rnd[0] & 1;
   }
 
   // BIT_SRC_B
-  else if (bit_source == BIT_SRC_B) 
+  else if (bit_source == BIT_SRC_B)
   {
     // Reset counters
     timer0->reset_counter();
@@ -212,12 +226,12 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
     // Measure counters
     rnd[0] = timer0->read_counter();
 
-    // Bit value derives from count parity    
+    // Bit value derives from count parity
     *rng_a = rnd[0] & 1;
   }
 
   // BIT_SRC_AB, BIT_SRC_AB_XOR
-  else  
+  else
   {
     // Reset counters
     timer1->reset_counter();
@@ -236,7 +250,7 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
 
     if (bit_source == BIT_SRC_AB_XOR)
       *rng_a ^= *rng_b;
-  }  
+  }
 }
 
 void RNG::send_bits(uint8_t bit_source)
@@ -244,9 +258,9 @@ void RNG::send_bits(uint8_t bit_source)
   // Validate bit_source
   if (!validate_bit_source(bit_source))
     return;
-  
+
   // Initialize
-  read_initialize(); 
+  read_initialize();
 
   // Timing debug
   if (d1_timing_debug)
@@ -254,7 +268,7 @@ void RNG::send_bits(uint8_t bit_source)
 
   // Read random bit
   uint8_t rnd[2];
-  read_bit(&rnd[0], &rnd[1], bit_source); 
+  read_bit(&rnd[0], &rnd[1], bit_source);
 
   // Timing debug
   if (d1_timing_debug)
@@ -295,14 +309,14 @@ void RNG::read_byte(uint8_t* rng_a, uint8_t* rng_b)
     if (rnd[1] & 1)
       *rng_b |= bit_lshift_mask[i];
   }
-  
+
   // Health monitoring
   #if defined(FIRMWARE_HEALTH_CONTINUOUS_ENABLED)
   rng_health_continuous->run_tests(rng_a, rng_b);
   #endif
 }
 
-void RNG::read_byte_pp_xor(uint8_t* rng_a, uint8_t* rng_b) 
+void RNG::read_byte_pp_xor(uint8_t* rng_a, uint8_t* rng_b)
 {
   // Measure bytes
   uint8_t rnd1[2], rnd2[2];
@@ -314,7 +328,7 @@ void RNG::read_byte_pp_xor(uint8_t* rng_a, uint8_t* rng_b)
   *rng_b = rnd1[1] ^ rnd2[1];
 }
 
-void RNG::read_byte_pp_xor_dichtl(uint8_t* rng_a, uint8_t* rng_b) 
+void RNG::read_byte_pp_xor_dichtl(uint8_t* rng_a, uint8_t* rng_b)
 {
   // Measure bytes
   uint8_t rnd1[2], rnd2[2];
@@ -326,7 +340,7 @@ void RNG::read_byte_pp_xor_dichtl(uint8_t* rng_a, uint8_t* rng_b)
   *rng_b = (rnd1[1] ^ byte_rol(rnd1[1], 1)) ^ rnd2[1];
 }
 
-void RNG::read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b) 
+void RNG::read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b)
 {
   // Reset output bytes
   *rng_a = 0;
@@ -346,7 +360,7 @@ void RNG::read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b)
     // Create bits until they satisfy VN condition
     while (!( bit_rdy[0] &&  bit_rdy[1])) {
 
-      // Read pulse counts    
+      // Read pulse counts
       read_pulse_count(&pc1[0], &pc1[1]);
       read_pulse_count(&pc2[0], &pc2[1]);
 
@@ -358,19 +372,19 @@ void RNG::read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b)
         bit2[0] = pc2[0] & 1;
 
         // Check VN condition
-        if (bit1[0] != bit2[0])          
+        if (bit1[0] != bit2[0])
            bit_rdy[0] = true;
       }
-      
+
       // RNG B
       if (!bit_rdy[1]) {
 
         // Transform pulse counts to bits
-         bit1[1] = pc1[1] & 1;    
+         bit1[1] = pc1[1] & 1;
          bit2[1] = pc2[1] & 1;
 
         // Check VN condition
-        if (bit1[1] != bit2[1])          
+        if (bit1[1] != bit2[1])
            bit_rdy[1] = true;
       }
     }
@@ -394,15 +408,15 @@ void RNG::send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uin
   // Validate postproc_id
   if (!validate_postproc_id(postproc_id))
     return;
-  
+
   // Link to appropriate post-processing functiong
   RNG::byte_func_addr read_byte_func = random_byte_func_addrs[postproc_id];
 
   // Send header
   comm->write_msg_header(comm_id, n_bytes, request_id);
-  
+
   // Initialize
-  read_initialize(); 
+  read_initialize();
 
   // Loop over n_bytes
   uint8_t rnd[2];
@@ -420,17 +434,17 @@ void RNG::send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uin
       PORTE = 0; // PE6 (D1) output = LO
 
     // Write random bytes
-    comm->write(rnd, 2);    
+    comm->write(rnd, 2);
   }
-  
+
   // Finalize
   read_finalize();
 }
 
-uint8_t RNG::gen_int8(uint8_t int_max)
+uint8_t RNG::gen_int8(uint8_t int_delta)
 {
   // Vars
-  uint8_t min_bits = (uint8_t)ceil(log(int_max)/log(2));
+  uint8_t min_bits = (uint8_t)ceil(log(int_delta)/log(2));
   uint8_t min_bits_mask = (uint8_t)bit_mask_1s(min_bits);
   uint8_t rnd_int;
 
@@ -440,7 +454,7 @@ uint8_t RNG::gen_int8(uint8_t int_max)
 
     // Generate two random bytes
     read_byte(&rnd[0], &rnd[1]);
-    
+
     // Xor them
     rnd_int = rnd[0] ^ rnd[1];
 
@@ -448,7 +462,7 @@ uint8_t RNG::gen_int8(uint8_t int_max)
     rnd_int &= min_bits_mask;
 
     // Test range
-    if (rnd_int < int_max) {
+    if (rnd_int < int_delta) {
       break;
     }
   }
@@ -456,29 +470,33 @@ uint8_t RNG::gen_int8(uint8_t int_max)
   return rnd_int;
 }
 
-void RNG::send_int8s(uint32_t n_ints, uint8_t int_max)
+void RNG::send_int8s(uint32_t n_ints, uint8_t int_delta)
 {
+  // Validate postproc_id
+  if (!validate_int_delta(int_delta))
+    return;
+
   // Send header
   comm->write_msg_header(COMM_RNG_INT8S, n_ints);
 
   // Initialize
   read_initialize();
-  
+
   // Generate and send ints
   uint8_t rnd8;
   for (uint32_t i=0; i < n_ints; i++) {
-    rnd8 = gen_int8(int_max);
+    rnd8 = gen_int8(int_delta);
     comm->write(rnd8);
   }
-  
+
   // Finalize
   read_finalize();
 }
 
-uint16_t RNG::gen_int16(uint16_t int_max)
+uint16_t RNG::gen_int16(uint16_t int_delta)
 {
   // Vars
-  uint8_t min_bits = (uint8_t)ceil(log(int_max)/log(2));
+  uint8_t min_bits = (uint8_t)ceil(log(int_delta)/log(2));
   uint16_t min_bits_mask = (uint16_t)bit_mask_1s(min_bits);
   uint8_t min_bytes = (uint8_t)ceil((float)min_bits/8);
   uint16_t rnd_int;
@@ -486,7 +504,7 @@ uint16_t RNG::gen_int16(uint16_t int_max)
   // Loop and generate
   uint8_t rnd[2];
   while (true) {
-    for (uint8_t i=0; i<min_bytes; i++) {      
+    for (uint8_t i=0; i<min_bytes; i++) {
 
       // Generate two random bytes
       read_byte(&rnd[0], &rnd[1]);
@@ -502,7 +520,7 @@ uint16_t RNG::gen_int16(uint16_t int_max)
     rnd_int &= min_bits_mask;
 
     // Test range
-    if (rnd_int < int_max) {
+    if (rnd_int < int_delta) {
       break;
     }
   }
@@ -510,53 +528,57 @@ uint16_t RNG::gen_int16(uint16_t int_max)
   return rnd_int;
 }
 
-void RNG::send_int16s(uint32_t n_ints, uint16_t int_max)
+void RNG::send_int16s(uint32_t n_ints, uint16_t int_delta)
 {
+  // Validate postproc_id
+  if (!validate_int_delta(int_delta))
+    return;
+
   // Send header
   comm->write_msg_header(COMM_RNG_INT16S, n_ints);
 
   // Initialize
   read_initialize();
-  
+
   // Generate and send ints
   uint16_t rnd16;
   for (uint32_t i=0; i < n_ints; i++) {
-    rnd16 = gen_int16(int_max);
+    rnd16 = gen_int16(int_delta);
     comm->write(rnd16);
   }
-  
+
   // Finalize
   read_finalize();
 }
 
-void RNG::start_bytes_stream(uint16_t n_bytes, uint8_t postproc_id, uint16_t delay_ms)
-{ 
+void RNG::start_bytes_stream(uint16_t n_bytes, uint8_t postproc_id, uint16_t interval_ms)
+{
   // Validate pars
   if (!validate_postproc_id(postproc_id))
     return;
-  if (!validate_byte_stream_delay(delay_ms))
+  if (!validate_byte_stream_delay(interval_ms))
     return;
-    
+
   // Initialize vars
   stream_cfg.streaming = true;
   stream_cfg.ready = true;
   stream_cfg.n_bytes = n_bytes;
   stream_cfg.postproc_id = postproc_id;
-  stream_cfg.delay_ms = delay_ms;
+  stream_cfg.interval_ms = interval_ms;
 
   // Delay type
-  if (delay_ms == 0) {
+  if (interval_ms == 0) {
     // See task_rng_stream_zero_delay()
-  } 
+  }
   else {
     // Configure Timer3
-    timer3->setup_rng_interrupt(delay_ms); // Activates ISR (TIMER3_COMPA_vect) 
+    timer3->setup_rng_interrupt(interval_ms); // Activates ISR (TIMER3_COMPA_vect)
   }
 }
 
 void RNG::stop_bytes_stream()
 {
-  stream_cfg.streaming = false;  
+  stream_cfg.streaming = false;
   timer3->reset();
 }
 

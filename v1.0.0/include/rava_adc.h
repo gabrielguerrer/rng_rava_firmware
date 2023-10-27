@@ -1,12 +1,12 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-The ADC_COMP class empowers the functionality of analog-to-digital conversions 
-and comparator features that are exposed throgh the D5 peripheral. For more 
+The ADC_COMP class empowers the functionality of analog-to-digital conversions
+and comparator features that are exposed throgh the D5 peripheral. For more
 details refer to rava_peripherals.
 */
 
@@ -35,7 +35,7 @@ class ADC_COMP
     void setup_temperature();
 
     float read_adc_v(uint8_t ref_5v, uint8_t oversampling_n_bits);
-    
+
     float read_adc12_v(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits);
     float read_temperature_v();
 };

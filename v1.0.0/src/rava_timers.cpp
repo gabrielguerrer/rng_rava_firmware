@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <avr/interrupt.h>
@@ -13,13 +13,13 @@
 void TIMER0::reset()
 {
   // Normal mode, TOP at 0xff
-  TCCR0A = 0; 
-  
+  TCCR0A = 0;
+
   // No clock source
-  TCCR0B = 0; 
+  TCCR0B = 0;
 
   // Interrupts disabled
-  TIMSK0 = 0; 
+  TIMSK0 = 0;
 }
 
 void TIMER0::setup_arduino_and_rng()
@@ -31,7 +31,7 @@ void TIMER0::setup_arduino_and_rng()
   TCCR0B = TIMER013_CLK_DIV_64;
 
   // Overflow Interrupt Enable; occurs every 256 / (16000000 / 64) s = 1.024 ms
-  TIMSK0 |= _BV(TOIE0); 
+  TIMSK0 |= _BV(TOIE0);
 }
 
 void TIMER0::clock_internal()
@@ -59,23 +59,23 @@ uint8_t TIMER0::read_counter()
 void TIMER1::reset()
 {
   // Normal mode, TOP at 0xffff
-  TCCR1A = 0; 
+  TCCR1A = 0;
 
   // No clock source
-  TCCR1B = 0; 
+  TCCR1B = 0;
   TCCR1C = 0;
 
   // Interrupts disabled
-  TIMSK1 = 0; 
+  TIMSK1 = 0;
 }
 
 void TIMER1::setup_rng()
-{ 
+{
   // Reset
   reset();
 
   // External clock source on T1 pin, clock on rising edge
-  TCCR1B = TIMER013_CLK_EXTERN_RISING_EDGE; 
+  TCCR1B = TIMER013_CLK_EXTERN_RISING_EDGE;
 }
 
 void TIMER1::reset_counter()
@@ -91,36 +91,36 @@ uint8_t TIMER1::read_counter()
 void TIMER3::reset()
 {
   // Normal mode, TOP at 0xffff
-  TCCR3A = 0; 
+  TCCR3A = 0;
 
   // No clock source
-  TCCR3B = 0; 
+  TCCR3B = 0;
   TCCR3C = 0;
   TIMSK3 = 0;
 
   // PC6 as input
-  DDRC &= ~_BV(6); 
+  DDRC &= ~_BV(6);
 }
 
-uint16_t TIMER3::setup_clock(uint16_t delay_ms)
+uint16_t TIMER3::setup_clock(uint16_t interval_ms)
 {
   // Assumes a 16MHz external clock
   float ticks_per_ms;
 
   // Find the correct prescaler and the associated number of ticks per ms
-  if (delay_ms <= 32) {  // 2**16/(16MHz/8)
+  if (interval_ms <= 32) {  // 2**16/(16MHz/8)
     TCCR3B = TIMER013_CLK_DIV_8; // clk/8
     ticks_per_ms = 2000.;  // (16MHz/8)/1000
   }
-  else if (delay_ms <= 262) {  // 2**16/(16MHz/64)
+  else if (interval_ms <= 262) {  // 2**16/(16MHz/64)
     TCCR3B = TIMER013_CLK_DIV_64; // clk/64
     ticks_per_ms = 250.;  // (16MHz/64)/1000
   }
-  else if (delay_ms <= 1048) {  // 2**16/(16MHz/256)
+  else if (interval_ms <= 1048) {  // 2**16/(16MHz/256)
     TCCR3B = TIMER013_CLK_DIV_256; // clk/256
     ticks_per_ms = 62.5;  // (16MHz/256)/1000
   }
-  else if (delay_ms <= 4194) {  // 2**16/(16MHz/1024)    
+  else if (interval_ms <= 4194) {  // 2**16/(16MHz/1024)
     TCCR3B = TIMER013_CLK_DIV_1024; // clk/1024
     ticks_per_ms = 15.625;  // (16MHz/1024)/1000
   }
@@ -128,59 +128,59 @@ uint16_t TIMER3::setup_clock(uint16_t delay_ms)
     return 0;
   }
 
-  // Return delay ticks, the quantity of clock ticks for delay_ms
-  uint16_t delay_ticks = round(float(delay_ms) * ticks_per_ms);
+  // Return delay ticks, the quantity of clock ticks for interval_ms
+  uint16_t delay_ticks = round(float(interval_ms) * ticks_per_ms);
   delay_ticks -= 1;
-  return delay_ticks;  
+  return delay_ticks;
 }
 
-void TIMER3::setup_rng_interrupt(uint16_t delay_ms)
+void TIMER3::setup_rng_interrupt(uint16_t interval_ms)
 {
   // Reset
   reset();
-  
+
   // Setup clock
-  OCR3A = setup_clock(delay_ms);  
+  OCR3A = setup_clock(interval_ms);
 
   // CTC mode, TOP at OCR3A
-  TCCR3B |= _BV(WGM32); 
-  
+  TCCR3B |= _BV(WGM32);
+
   // Output Compare A Match Interrupt Enable
   TIMSK3 |= _BV(OCIE3A);  // Activates ISR(TIMER3_COMPA_vect)
 
-  // Restart counter  
+  // Restart counter
   TCNT3 = 0;
 }
 
-void TIMER3::setup_trigger_output(uint16_t delay_ms)
+void TIMER3::setup_trigger_output(uint16_t interval_ms)
 {
   // Find 100us duty. Assumes a 16MHz external clock
   uint16_t duty_100us = 0;
-  if (delay_ms <= 32) { // 2**16/(16MHz/8)
+  if (interval_ms <= 32) { // 2**16/(16MHz/8)
     duty_100us = 200;  // (16MHz/8)/1000 / 10
   }
-  else if (delay_ms <= 262) {  // 2**16/(16MHz/64)
+  else if (interval_ms <= 262) {  // 2**16/(16MHz/64)
     duty_100us = 25;  // (16MHz/64)/1000 / 10
   }
-  else if (delay_ms <= 1048) {  // 2**16/(16MHz/256)
+  else if (interval_ms <= 1048) {  // 2**16/(16MHz/256)
     duty_100us = 6;  // (16MHz/256)/1000 / 10
   }
-  else if (delay_ms <= 4194) {  // 2**16/(16MHz/1024)
+  else if (interval_ms <= 4194) {  // 2**16/(16MHz/1024)
     duty_100us = 2;  // (16MHz/1024)/1000 / 10
   }
 
   // Reset
-  reset(); 
+  reset();
 
   // Setup prescaler (CS3i) and set the TOP value
-  ICR3 = setup_clock(delay_ms);  
+  ICR3 = setup_clock(interval_ms);
 
   // Fast PWM, TOP at ICR3
   TCCR3A |= _BV(WGM31);
   TCCR3B |= _BV(WGM33) | _BV(WGM32);
-  
+
   // Clear OC3A on compare match ; PWM output to port C6
-  TCCR3A |= _BV(COM3A1); 
+  TCCR3A |= _BV(COM3A1);
 
   // Port C6: Output mode
   PORTC &= ~_BV(6);
@@ -188,9 +188,9 @@ void TIMER3::setup_trigger_output(uint16_t delay_ms)
 
   // Setup duty
   OCR3A = duty_100us;
-  
-  // Restart counter  
-  TCNT3 = 0;  
+
+  // Restart counter
+  TCNT3 = 0;
 }
 
 void TIMER3::setup_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
@@ -206,28 +206,28 @@ void TIMER3::setup_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
   TCCR3B |= _BV(WGM33) | _BV(WGM32);
 
   // Clear OC3A on compare match ; PWM output to port C6
-  TCCR3A |= _BV(COM3A1); 
+  TCCR3A |= _BV(COM3A1);
 
   // Port C6: Output mode
   PORTC &= ~_BV(6);
   DDRC |= _BV(6);
 
   // Setup top and duty
-  ICR3 = top;  
+  ICR3 = top;
   OCR3A = duty;
 
-  // Restart counter  
-  TCNT3 = 0;  
+  // Restart counter
+  TCNT3 = 0;
 }
 
 void TIMER3::setup_input_capture()
 {
   // Reset
   reset();
-  
-  // Setup prescaler 
+
+  // Setup prescaler
   TCCR3B = TIMER013_CLK_DIV_256;
-  
+
   // Fast PWM mode, TOP at OCR3A, OVERFLOW at TOP
   TCCR3A |= _BV(WGM31) | _BV(WGM30);
   TCCR3B |= _BV(WGM33) | _BV(WGM32);
@@ -245,38 +245,38 @@ void TIMER3::setup_input_capture()
   TIFR3 |= _BV(ICF3);
 
   // Input Capture Interrupt Enable
-  TIMSK3 |= _BV(ICIE3);  // Running ISR(TIMER3_CAPT_vect) defined on rava_firmware.cpp
+  TIMSK3 |= _BV(ICIE3);  // Running ISR(TIMER3_CAPT_vect) defined on rava_interrupts.h
 
   // Overflow Interrupt Enable
-  TIMSK3 |= _BV(TOIE3);  // Running ISR(TIMER3_OVF_vect) defined on rava_firmware.cpp
+  TIMSK3 |= _BV(TOIE3);  // Running ISR(TIMER3_OVF_vect) defined on rava_interrupts.h
 
-  // Restart counter  
+  // Restart counter
   TCNT3 = 0;
 }
 
 void TIMER4::reset()
 {
   // Normal mode, TOP at OCR4C
-  TCCR4A = 0; 
+  TCCR4A = 0;
 
   // No clock source
-  TCCR4B = 0; 
+  TCCR4B = 0;
   TCCR4C = 0;
   TCCR4D = 0;
   TCCR4E = 0;
 
   // B6 as input
-  DDRB &= ~_BV(6); 
+  DDRB &= ~_BV(6);
 }
 
 void TIMER4::setup_pll()
-{  
+{
   // 16MHz clock
-  #if F_CPU == 16000000UL  
+  #if F_CPU == 16000000UL
 
     // PLL Postcaler Factor
     PLLCSR = 0;
-    PLLCSR |= _BV(PINDIV); // Disable PLL, 16 MHz clock source   
+    PLLCSR |= _BV(PINDIV); // Disable PLL, 16 MHz clock source
 
     PLLFRQ = 0;
     PLLFRQ |= _BV(PDIV3) | _BV(PDIV1);  // CLK_PLL 96MHz
@@ -286,10 +286,10 @@ void TIMER4::setup_pll()
     PLLCSR |= _BV(PLLE); // Enable PLL
 
   // 8MHz clock
-  #elif F_CPU == 8000000UL  
+  #elif F_CPU == 8000000UL
 
     // PLL Postcaler Factor
-    PLLCSR = 0; // Disable PLL, 8 MHz clock source 
+    PLLCSR = 0; // Disable PLL, 8 MHz clock source
 
     PLLFRQ = 0; // PLLUSB / 1
     PLLFRQ |= _BV(PDIV2) // CLK_PLL 48MHz
@@ -301,34 +301,34 @@ void TIMER4::setup_pll()
 }
 
 void TIMER4::setup_pwm(uint8_t freq_prescaler, uint8_t top, uint8_t duty)
-{ 
+{
   // Reset Timer4
   reset();
 
   // Configure the PLL Postcaler Factor
-  setup_pll(); 
+  setup_pll();
 
-  // Prescaling factor 
-  TCCR4B = freq_prescaler % 16; 
+  // Prescaling factor
+  TCCR4B = freq_prescaler % 16;
 
-  // PWM mode based on OCR4B, TOP at OCR4C    
-  TCCR4A |= _BV(PWM4B); 
+  // PWM mode based on OCR4B, TOP at OCR4C
+  TCCR4A |= _BV(PWM4B);
 
-  // Clear OC4B on Compare Match ; PWM output to port B6  
-  TCCR4A |= _BV(COM4B1); 
+  // Clear OC4B on Compare Match ; PWM output to port B6
+  TCCR4A |= _BV(COM4B1);
 
   // Port B6: Output mode
   PORTB &= ~_BV(6);
   DDRB |= _BV(6);
 
   // Define TOP value ; OC4B frequency of (48MHz / prescaling factor) / OCR4C
-  OCR4C = top; 
+  OCR4C = top;
 
   // Set duty value
-  OCR4B = duty;   
+  OCR4B = duty;
 
   // Reset counter
-  TCNT4 = 0; 
+  TCNT4 = 0;
 }
 
 WDT::WDT()
@@ -341,25 +341,25 @@ WDT::WDT()
 void WDT::reset()
 {
   // Disable Interrupts
-  cli(); 
+  cli();
 
   // Watchdog Change Enable
-  WDTCSR = _BV(WDCE) | _BV(WDE); 
+  WDTCSR = _BV(WDCE) | _BV(WDE);
 
   // Change register
   WDTCSR = 0;
 
   // Enable Interrupts
-  sei(); 
+  sei();
 }
 
 void WDT::setup_interrupt(uint8_t freq_prescaler)
 {
   // Disable Interrupts
-  cli(); 
+  cli();
 
   // Watchdog Change Enable
-  WDTCSR = _BV(WDCE) | _BV(WDE); 
+  WDTCSR = _BV(WDCE) | _BV(WDE);
 
   // Set timeout interval with WDIE enabled (see enum WDT_CLOCK)
   WDTCSR = _BV(WDIE) | freq_prescaler;
@@ -371,16 +371,16 @@ void WDT::setup_interrupt(uint8_t freq_prescaler)
 void WDT::reboot_device()
 {
   // Disable Interrupts
-  cli();	
+  cli();
 
   // Reset the WDT timer
-  wdt_reset();  
+  wdt_reset();
 
   // Watchdog Change Enable
-  WDTCSR = _BV(WDCE) | _BV(WDE); 
+  WDTCSR = _BV(WDCE) | _BV(WDE);
 
-	// System Reset Enable  
-  WDTCSR = _BV(WDE);	
+	// System Reset Enable
+  WDTCSR = _BV(WDE);
 
   // Enable Interrupts
 	sei();

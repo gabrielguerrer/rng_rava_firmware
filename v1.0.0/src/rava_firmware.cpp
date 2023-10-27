@@ -1,39 +1,39 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
+ *
  * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-This is the main file that orchestrates the RAVA's firmware functioning. Its 
+This is the main file that orchestrates the RAVA's firmware functioning. Its
 core functions are:
 
-1. Setup: At the outset, the code initializes instances of various components in 
-accordance with the preprocessor variables specified in rava_config.h. Each 
-component class proceeds through its initialization routines to configure the 
-microcontroller (MCU) for its intended functionality. Some classes retrieve 
+1. Setup: At the outset, the code initializes instances of various components in
+accordance with the preprocessor variables specified in rava_config.h. Each
+component class proceeds through its initialization routines to configure the
+microcontroller (MCU) for its intended functionality. Some classes retrieve
 their configuration parameters from the device's EEPROM memory.
 
-2. Health Startup Tests: Following initialization, startup tests are conducted 
-to assess the randomness quality. In the event of a test failure, the code 
-enters a loop, invoking task_health_startup_failed() to report the problem. 
-During this state, entropy generation is suspended until the health-related 
+2. Health Startup Tests: Following initialization, startup tests are conducted
+to assess the randomness quality. In the event of a test failure, the code
+enters a loop, invoking task_health_startup_failed() to report the problem.
+During this state, entropy generation is suspended until the health-related
 issues are resolved.
 
-3. Command Processing: Assuming the startup tests succeed, the code enters a 
-loop within task_serial_read(). This function monitors the serial interface for 
-incoming commands from a leader device. Each received command initiates a 
-specific action, which may or may not involve sending information back. 
+3. Command Processing: Assuming the startup tests succeed, the code enters a
+loop within task_serial_read(). This function monitors the serial interface for
+incoming commands from a leader device. Each received command initiates a
+specific action, which may or may not involve sending information back.
 
-Command identification codes are defined in rava_comm.h, and categorized into 
-distinct groups, each associated with a specific source file and header. These 
-categories encompass device, eeprom, pwm, rng, health, led, lamp, peripherals, 
-and interfaces. 
+Command identification codes are defined in rava_comm.h, and categorized into
+distinct groups, each associated with a specific source file and header. These
+categories encompass device, eeprom, pwm, rng, health, led, lamp, peripherals,
+and interfaces.
 
-The firmware code includes a documentation section at the beginning of each 
-header file, elucidating the module's purpose. To gain a deeper understanding of 
-how the device operates, users are encouraged to explore the code and these 
-explanations by following the sequence of module initializations within the 
+The firmware code includes a documentation section at the beginning of each
+header file, elucidating the module's purpose. To gain a deeper understanding of
+how the device operates, users are encouraged to explore the code and these
+explanations by following the sequence of module initializations within the
 setup() function.
 */
 
@@ -66,7 +66,7 @@ COMM_USB* usb;
 COMM_SERIAL* serial;
 
 // MCU BASE COMPONENTS
-DEVICE* rava_dev;
+DEVICE* dev;
 EEPROM* eeprom;
 TIMER0* timer0;
 TIMER1* timer1;
@@ -104,37 +104,37 @@ INTERF_DS18B20* interf_ds18b20;
 void setup()
 {
   // MCU COMM
-  usb = new COMM_USB();  
-  
+  usb = new COMM_USB();
+
   #if defined(FIRMWARE_COMM_SERIAL1_ENABLED)
   serial = new COMM_SERIAL();
   #endif
-  
+
   // MCU BASE COMPONENTS
-  rava_dev = new DEVICE();
-  eeprom = new EEPROM(); 
+  dev = new DEVICE();
+  eeprom = new EEPROM();
   timer0 = new TIMER0();
   timer1 = new TIMER1();
   timer3 = new TIMER3();
   timer4 = new TIMER4();
   wdt = new WDT();
   adc_comp = new ADC_COMP();
-  
+
   // RAVA COMPONENTS
   pwm = new PWM();
   rng = new RNG();
-  
+
   #if defined(FIRMWARE_LED_ENABLED)
   led = new LED();
-  #endif  
+  #endif
 
   #if defined(FIRMWARE_LED_ENABLED) && defined(FIRMWARE_LAMP_ENABLED)
   lamp = new LAMP();
-  #endif  
+  #endif
 
-  // RAVA HEALTH  
+  // RAVA HEALTH
   #if defined(FIRMWARE_HEALTH_STARTUP_ENABLED)
-  rng_health_startup = new HEALTH_STARTUP();  
+  rng_health_startup = new HEALTH_STARTUP();
   #endif
 
   #if defined(FIRMWARE_HEALTH_CONTINUOUS_ENABLED)
@@ -170,28 +170,33 @@ void setup()
 
   if (!rng_health_startup->get_tests_result())
     // Error: Loop on task_health_startup_failed()
-    return; 
-  #endif    
-  
+    return;
+  #endif
+
+  // Reset Health continuous errors
+  #if defined(FIRMWARE_HEALTH_CONTINUOUS_ENABLED)
+  rng_health_continuous->reset_errors();
+  #endif
+
   // Enable LAMP mode
   #if defined(FIRMWARE_LED_ENABLED) && defined(FIRMWARE_LAMP_ENABLED)
   lamp->setup();
-  #endif  
+  #endif
 }
 
 /////////////////////////////
 // TASKS
- 
+
 void task_health_startup_failed()
-{  
+{
   uint8_t msg_bytes[COMM_MSG_LEN-1];
 
-  // Is there any available command? 
+  // Is there any available command?
   uint8_t msg_command_id = usb->read_msg_header(msg_bytes);
 
   if (msg_command_id) {
     // Yes, specify the communication device to which the modules will refer
-    comm = (COMM*) usb; 
+    comm = (COMM*) usb;
   }
   else {
     // No available command, exit
@@ -201,27 +206,27 @@ void task_health_startup_failed()
   // Take an action according to the command id
 
   // DEVICE_SERIAL_NUMBER
-  if (msg_command_id == COMM_DEVICE_SERIAL_NUMBER) 
-    rava_dev->send_serial_number();
+  if (msg_command_id == COMM_DEVICE_SERIAL_NUMBER)
+    dev->send_serial_number();
 
   // EEPROM_FIRMWARE
   else if (msg_command_id == COMM_EEPROM_FIRMWARE)
-    eeprom->send_firmware();        
+    eeprom->send_firmware();
 
   // HEALTH_STARTUP_RUN
-  else if (msg_command_id == COMM_HEALTH_STARTUP_RUN) 
+  else if (msg_command_id == COMM_HEALTH_STARTUP_RUN)
     rng_health_startup->run_tests();
 
   // HEALTH_STARTUP_RESULTS
-  else if (msg_command_id == COMM_HEALTH_STARTUP_RESULTS) 
+  else if (msg_command_id == COMM_HEALTH_STARTUP_RESULTS)
     rng_health_startup->send_results();
 }
 
 void task_serial_read(COMM* comm_task)
-{ 
+{
   uint8_t msg_bytes[COMM_MSG_LEN-1];
 
-  // Is there any available command? 
+  // Is there any available command?
   uint8_t msg_command_id = comm_task->read_msg_header(msg_bytes);
 
   if (msg_command_id) {
@@ -233,10 +238,10 @@ void task_serial_read(COMM* comm_task)
 
     // Is LAMP sending debugging information?
     if (!lamp->experiment_debugging()) {
-    
+
       // Switching from uncontacted to contacted?
-      if (!comm_task->get_contacted()) { 
-        
+      if (!comm_task->get_contacted()) {
+
         // Switch LAMP off: see task_lamp()
         comm_task->set_contacted(true);
 
@@ -249,24 +254,24 @@ void task_serial_read(COMM* comm_task)
   else {
     // No available command, exit
     return;
-  }  
+  }
 
   // Take an action according to the command id
   switch (msg_command_id)
   {
     // DEVICE
     case COMM_DEVICE_SERIAL_NUMBER: {
-      rava_dev->send_serial_number();
+      dev->send_serial_number();
       break;
       }
 
     case COMM_DEVICE_TEMPERATURE: {
-      rava_dev->send_temperature();
+      dev->send_temperature();
       break;
       }
 
     case COMM_DEVICE_FREE_RAM: {
-      rava_dev->send_free_ram();
+      dev->send_free_ram();
       break;
       }
 
@@ -299,7 +304,7 @@ void task_serial_read(COMM* comm_task)
     }
 
     case COMM_EEPROM_FIRMWARE: {
-      eeprom->send_firmware();              
+      eeprom->send_firmware();
       break;
     }
 
@@ -342,7 +347,7 @@ void task_serial_read(COMM* comm_task)
         eeprom->update_led(led_attached);
       break;
     }
-    
+
     case COMM_EEPROM_LAMP: {
       uint8_t send = msg_bytes[1];
 
@@ -361,24 +366,24 @@ void task_serial_read(COMM* comm_task)
       }
       break;
     }
-    
+
     // PWM
     case COMM_PWM_SETUP: {
       uint8_t send = msg_bytes[1];
       uint8_t freq_id = msg_bytes[2];
-      uint8_t duty = msg_bytes[3];        
+      uint8_t duty = msg_bytes[3];
 
       if (send)
         pwm->send_setup();
       else
         pwm->setup(false, freq_id, duty);
       break;
-    }          
-  
+    }
+
     // RNG
     case COMM_RNG_SETUP: {
       uint8_t send = msg_bytes[1];
-      uint8_t sampling_interval = msg_bytes[2];    
+      uint8_t sampling_interval = msg_bytes[2];
 
       if (send)
         rng->send_setup();
@@ -394,7 +399,7 @@ void task_serial_read(COMM* comm_task)
       break;
     }
 
-    case COMM_RNG_BITS: {              
+    case COMM_RNG_BITS: {
       uint8_t bit_source = msg_bytes[1];
 
       rng->send_bits(bit_source);
@@ -417,28 +422,28 @@ void task_serial_read(COMM* comm_task)
       break;
     }
 
-    case COMM_RNG_INT8S: {      
+    case COMM_RNG_INT8S: {
       uint32_t n_ints = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
-      uint8_t int_max = msg_bytes[5];
+      uint8_t int_delta = msg_bytes[5];
 
-      rng->send_int8s(n_ints, int_max);
+      rng->send_int8s(n_ints, int_delta);
       break;
     }
 
-    case COMM_RNG_INT16S: {      
+    case COMM_RNG_INT16S: {
       uint32_t n_ints = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
-      uint16_t int_max = unpack_int(msg_bytes[5], msg_bytes[6]);
+      uint16_t int_delta = unpack_int(msg_bytes[5], msg_bytes[6]);
 
-      rng->send_int16s(n_ints, int_max);
+      rng->send_int16s(n_ints, int_delta);
       break;
     }
-  
+
     case COMM_RNG_STREAM_START: {
-      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);      
+      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);
       uint8_t postproc_id = msg_bytes[3];
-      uint16_t stream_delay_ms = unpack_int(msg_bytes[4], msg_bytes[5]);
+      uint16_t stream_interval_ms = unpack_int(msg_bytes[4], msg_bytes[5]);
 
-      rng->start_bytes_stream(n_bytes, postproc_id, stream_delay_ms);
+      rng->start_bytes_stream(n_bytes, postproc_id, stream_interval_ms);
       break;
     }
 
@@ -452,7 +457,7 @@ void task_serial_read(COMM* comm_task)
       break;
     }
 
-    // HEALTH          
+    // HEALTH
     #if defined(FIRMWARE_HEALTH_STARTUP_ENABLED)
 
     case COMM_HEALTH_STARTUP_RUN: {
@@ -500,7 +505,7 @@ void task_serial_read(COMM* comm_task)
       led->fade_color_oscillate(n_cycles, duration_ms);
       break;
     }
-    
+
     case COMM_LED_INTENSITY: {
       uint8_t intensity = msg_bytes[1];
 
@@ -520,7 +525,7 @@ void task_serial_read(COMM* comm_task)
       led->fade_stop();
       break;
     }
-    
+
     case COMM_LED_STATUS: {
       led->send_status();
       break;
@@ -531,7 +536,7 @@ void task_serial_read(COMM* comm_task)
     #if defined(FIRMWARE_LED_ENABLED) && defined(FIRMWARE_LAMP_ENABLED)
 
     case COMM_LAMP_MODE: {
-      uint8_t lamp_on = msg_bytes[1];       
+      uint8_t lamp_on = msg_bytes[1];
       if (lamp_on) {
         comm_task->set_contacted(false);
         lamp->setup();
@@ -553,8 +558,8 @@ void task_serial_read(COMM* comm_task)
       lamp->experiment_debug(on);
       break;
     }
-    #endif    
-   
+    #endif
+
     // PERIPHERALS
     #if defined(FIRMWARE_PERIPHERALS_ENABLED)
 
@@ -588,7 +593,7 @@ void task_serial_read(COMM* comm_task)
 
       if (digi_state)
         ds[periph_id-1]->write_hi();
-      else  
+      else
         ds[periph_id-1]->write_lo();
       break;
     }
@@ -601,7 +606,7 @@ void task_serial_read(COMM* comm_task)
 
       ds[periph_id-1]->write_pulse(pulse_duration_us);
       break;
-    }         
+    }
 
     case COMM_PERIPH_D1_TRIGGER_INPUT: {
       uint8_t on = msg_bytes[1];
@@ -615,10 +620,10 @@ void task_serial_read(COMM* comm_task)
 
     case COMM_PERIPH_D1_COMPARATOR: {
       uint8_t on = msg_bytes[1];
-      uint8_t neg_to_adc12 = msg_bytes[2];
+      uint8_t neg_to_d5 = msg_bytes[2];
 
       if (on)
-        d1->setup_comparator(neg_to_adc12);
+        d1->setup_comparator(neg_to_d5);
       else
         d1->reset_comparator();
       break;
@@ -640,18 +645,18 @@ void task_serial_read(COMM* comm_task)
       else
         d2->reset_timer3_input_capture();
       break;
-    }  
+    }
 
     case COMM_PERIPH_D3_TIMER3_TRIGGER_OUTPUT: {
       uint8_t on = msg_bytes[1];
-      uint16_t delay_ms = unpack_int(msg_bytes[2], msg_bytes[3]);
+      uint16_t interval_ms = unpack_int(msg_bytes[2], msg_bytes[3]);
 
       if (on)
-        d3->setup_timer3_trigger_output(delay_ms);
+        d3->setup_timer3_trigger_output(interval_ms);
       else
         d3->reset_timer3_trigger_output();
       break;
-    }     
+    }
 
     case COMM_PERIPH_D3_TIMER3_PWM: {
       uint8_t on = msg_bytes[1];
@@ -665,7 +670,7 @@ void task_serial_read(COMM* comm_task)
         d3->reset_timer3_pwm();
       break;
     }
-    
+
     case COMM_PERIPH_D4_PIN_CHANGE: {
       uint8_t on = msg_bytes[1];
 
@@ -683,7 +688,7 @@ void task_serial_read(COMM* comm_task)
       uint8_t oversampling_n_bits = msg_bytes[4];
 
       if (on)
-        d5->read_adc(ref_5v, clk_prescaler, oversampling_n_bits);
+        d5->send_adc(ref_5v, clk_prescaler, oversampling_n_bits);
       else
         d5->reset_adc();
       break;
@@ -696,16 +701,16 @@ void task_serial_read(COMM* comm_task)
     case COMM_INTERFACE_DS18B20: {
       interf_ds18b20->send_read();
       break;
-    }          
+    }
     #endif
 
   }
 }
 
-// Used to send rng byte stream when delay_ms == 0
+// Used to send rng byte stream when interval_ms == 0
 void task_rng_stream_zero_delay()
-{  
-  if ((rng->stream_cfg.streaming) && (rng->stream_cfg.delay_ms == 0)){
+{
+  if ((rng->stream_cfg.streaming) && (rng->stream_cfg.interval_ms == 0)){
     rng->send_bytes_stream();
   }
 }
@@ -719,7 +724,7 @@ void task_led_fade()
 // Processes lamp mode, when no serial connection was made to the device
 void task_lamp()
 {
-  bool comm_contacted = usb->get_contacted();  
+  bool comm_contacted = usb->get_contacted();
 
   #if defined(FIRMWARE_COMM_SERIAL1_ENABLED)
   comm_contacted |= serial->get_contacted();
@@ -743,9 +748,9 @@ void loop()
     return;
   }
   #endif
-  
+
   // Startup tests successful
-  
+
   // Read USB interface and act accordingly
   task_serial_read(usb);
 

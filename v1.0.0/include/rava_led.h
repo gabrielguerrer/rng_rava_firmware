@@ -1,17 +1,17 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-This module introduces the LED class used to control a WS2812B LED that can be 
+This module introduces the LED class used to control a WS2812B LED that can be
 optionally attached to the LED pin in the RAVA device.
 
-The intensity and color fading/oscilating methods use the MCU's Watchdog timer 
-, which is configured to trigger the ISR (WDT_vect) interrupt every 16ms (refer 
-to rava_interrupts.h), subsequently calling LED::tick_increment(). The new tick 
-is detected by the fade_process() function, invoked within the main loop of 
+The intensity and color fading/oscilating methods use the MCU's Watchdog timer
+, which is configured to trigger the ISR (WDT_vect) interrupt every 16ms (refer
+to rava_interrupts.h), subsequently calling LED::tick_increment(). The new tick
+is detected by the fade_process() function, invoked within the main loop of
 rava_firmware, leading to the corresponding LED updates.
 */
 
@@ -41,7 +41,7 @@ struct LED_FADE_TYPE {
   bool fading = false;
   uint8_t val_init;
   uint16_t val_tgt;
-  int16_t val_delta;  
+  int16_t val_delta;
   uint16_t t_delta_ticks;
   volatile uint16_t tick_counter;
 };

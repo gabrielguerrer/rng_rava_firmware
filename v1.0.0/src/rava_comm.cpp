@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <USBAPI.h>
@@ -60,7 +60,7 @@ uint8_t COMM::read_msg_header(uint8_t* msg_bytes)
   return 0;
 }
 
-void COMM::write_msg_header(uint8_t command_id, uint8_t par1, uint8_t par2, uint8_t par3, uint8_t par4, uint8_t par5, 
+void COMM::write_msg_header(uint8_t command_id, uint8_t par1, uint8_t par2, uint8_t par3, uint8_t par4, uint8_t par5,
                             uint8_t par6)
 {
   uint8_t msg_header[COMM_MSG_LEN];
@@ -71,8 +71,8 @@ void COMM::write_msg_header(uint8_t command_id, uint8_t par1, uint8_t par2, uint
   msg_header[3] = par2;
   msg_header[4] = par3;
   msg_header[5] = par4;
-  msg_header[6] = par5;  
-  msg_header[7] = par6;  
+  msg_header[6] = par5;
+  msg_header[7] = par6;
 
   write(msg_header, COMM_MSG_LEN);
 }
@@ -112,10 +112,10 @@ void COMM::set_contacted(bool contact)
 COMM_USB::COMM_USB()
 {
   // The baud value is irrelevant for the 32u4
-  Serial.begin(SERIAL_BAUD);  
+  Serial.begin(SERIAL_BAUD);
 
   // Timeout allows receiving incomplete messages without blocking the code flow
-  Serial.setTimeout(SERIAL_READ_TIMEOUT_MS); 
+  Serial.setTimeout(SERIAL_READ_TIMEOUT_MS);
 
   // Tries waiting for USB handshake before entering health startup
   wait_usb_setup(USB_WAIT_SETUP_TIMEOUT_TICKS);
@@ -125,7 +125,7 @@ uint16_t COMM_USB::available()
 {
   return Serial.available();
 }
-  
+
 uint8_t COMM_USB::read()
 {
   return Serial.read();
@@ -147,12 +147,12 @@ void COMM_USB::write(const uint8_t* buffer, uint8_t length)
 }
 
 /**
- * Without this wait function, the device proceeds directly to the startup 
- * health tests. These tests place a considerable load on the CPU, delaying the 
+ * Without this wait function, the device proceeds directly to the startup
+ * health tests. These tests place a considerable load on the CPU, delaying the
  * response to USB setup interactions with the operating system.
- * 
- * A timeout is necessary as not all boots events involve new USB 
- * communications, as when the device is connected to a USB interface delivering 
+ *
+ * A timeout is necessary as not all boots events involve new USB
+ * communications, as when the device is connected to a USB interface delivering
  * power only.
  */
 void COMM_USB::wait_usb_setup(uint32_t ticks_timeout)
@@ -176,17 +176,17 @@ void COMM_USB::wait_usb_setup(uint32_t ticks_timeout)
 COMM_SERIAL::COMM_SERIAL()
 {
   // The baud value is relevant for the Hardware serial
-  Serial1.begin(SERIAL_BAUD);  
-  
+  Serial1.begin(SERIAL_BAUD);
+
   // Timeout allows receiving incomplete messages without blocking the code flow
-  Serial1.setTimeout(SERIAL_READ_TIMEOUT_MS); 
+  Serial1.setTimeout(SERIAL_READ_TIMEOUT_MS);
 }
 
 uint16_t COMM_SERIAL::available()
 {
   return Serial1.available();
 }
-  
+
 uint8_t COMM_SERIAL::read()
 {
   return Serial1.read();

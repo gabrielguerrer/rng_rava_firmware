@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <Arduino.h>
@@ -30,10 +30,10 @@ extern TIMER3* timer3;
 extern COMM* comm;
 
 PERIPH::PERIPH(uint8_t* port_cfg):
-  m_port_addr(port_cfg[0]), 
-  m_ddr_addr(port_cfg[1]), 
-  m_pin_addr(port_cfg[2]), 
-  m_port_i(port_cfg[3]) 
+  m_port_addr(port_cfg[0]),
+  m_ddr_addr(port_cfg[1]),
+  m_pin_addr(port_cfg[2]),
+  m_port_i(port_cfg[3])
 {}
 
 void PERIPH::mode_output()
@@ -82,14 +82,15 @@ uint8_t PERIPH::read()
 
 void PERIPH::send_digi_state()
 {
+  uint8_t mode = (_SFR_IO8(m_ddr_addr) & _BV(m_port_i)) != 0;
   uint8_t digi_state = read();
-  comm->write_msg_header(COMM_PERIPH_READ, periph_id, digi_state);
+
+  comm->write_msg_header(COMM_PERIPH_READ, digi_state, mode);
 }
 
-D1::D1(): 
+D1::D1():
   PERIPH(D1_CFG)
 {
-  periph_id = 1;
 }
 
 void D1::write_lo_fast()
@@ -108,7 +109,7 @@ uint8_t D1::read_fast()
 }
 
 void D1::reset_trigger_input()
-{  
+{
   EICRB = 0;
   EIMSK = 0; // Disable interrupt
 }
@@ -117,7 +118,7 @@ void D1::setup_trigger_input()
 {
   mode_input();
   reset_trigger_input();
-  
+
   // Rising edge between two samples of INT6 generates an interrupt
   EICRB = _BV(ISC61) | _BV(ISC60);
   // Enable interrupt. The interrupt function is impĺemented by ISR(INT6_vect)
@@ -129,10 +130,10 @@ void D1::reset_comparator()
   adc_comp->reset();
 }
 
-void D1::setup_comparator(uint8_t neg_to_adc12)
+void D1::setup_comparator(uint8_t neg_to_d5)
 {
-  adc_comp->setup_comparator(neg_to_adc12);
-}  
+  adc_comp->setup_comparator(neg_to_d5);
+}
 
 bool D1::validate_delay(uint8_t delay_us)
 {
@@ -153,10 +154,9 @@ void D1::delay_us_test(uint8_t delay_us)
   sei();
 }
 
-D2::D2(): 
+D2::D2():
   PERIPH(D2_CFG)
 {
-  periph_id = 2;
 }
 
 void D2::reset_timer3_input_capture()
@@ -170,22 +170,30 @@ void D2::setup_timer3_input_capture()
   timer3->setup_input_capture();
 }
 
-void  D2::send_timer3_input_capture_count(){
+void D2::send_timer3_input_capture_interval()
+{
   // Measure and send counts
   uint16_t timer3_count = ICR3;
-  comm->write_msg_header(COMM_PERIPH_D2_TIMER3_INPUT_CAPTURE, timer3_count, timer3_overflow_n);
+  float interval_s = timer3_count * 0.000016 + timer3_overflow_n;
+  comm->write_msg_header(COMM_PERIPH_D2_TIMER3_INPUT_CAPTURE, interval_s);
 
-  // Restart timer3 counter  
+  // Restart timer3 counter
   TCNT3 = 0;
-  
+
   // Restart overflows
   timer3_overflow_n = 0;
 }
 
-D3::D3(): 
-  PERIPH(D3_CFG) 
+D3::D3():
+  PERIPH(D3_CFG)
 {
-  periph_id = 3;
+}
+
+bool D3::validate_interval(uint16_t interval_ms)
+{
+  if ((interval_ms == 0) or (interval_ms > TIMER3_MAXIMUM_DELAY_MS))
+    return false;
+  return true;
 }
 
 void D3::reset_timer3_trigger_output()
@@ -193,9 +201,12 @@ void D3::reset_timer3_trigger_output()
   timer3->reset();
 }
 
-void D3::setup_timer3_trigger_output(uint16_t delay_ms)
+void D3::setup_timer3_trigger_output(uint16_t interval_ms)
 {
-  timer3->setup_trigger_output(delay_ms);
+  if (!validate_interval(interval_ms))
+    return;
+
+  timer3->setup_trigger_output(interval_ms);
 }
 
 bool D3::validate_pwm_pars(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
@@ -222,14 +233,13 @@ void D3::setup_timer3_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
   timer3->setup_pwm(freq_prescaler, top, duty);
 }
 
-D4::D4(): 
-  PERIPH(D4_CFG) 
+D4::D4():
+  PERIPH(D4_CFG)
 {
-  periph_id = 4;
 }
 
 void D4::reset_pin_change()
-{  
+{
   PCICR = 0;
   PCMSK0 = 0;
 }
@@ -245,10 +255,9 @@ void D4::setup_pin_change()
   PCMSK0 |= _BV(PCINT7);
 }
 
-D5::D5(): 
-  PERIPH(D5_CFG) 
+D5::D5():
+  PERIPH(D5_CFG)
 {
-  periph_id = 5;
 }
 
 void D5::reset_adc()
@@ -265,7 +274,7 @@ bool D5::validate_adc_pars(uint8_t clk_prescaler, uint8_t oversampling_n_bits)
   return true;
 }
 
-void D5::read_adc(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits)
+void D5::send_adc(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits)
 {
   if (!validate_adc_pars(clk_prescaler, oversampling_n_bits))
     return;

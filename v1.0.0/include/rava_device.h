@@ -1,11 +1,11 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-The DEVICE class enables the retrieval and transmission of information including 
+The DEVICE class enables the retrieval and transmission of information including
 the device's serial number, temperature, and the available RAM memory.
 */
 

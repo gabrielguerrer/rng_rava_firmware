@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 #include <avr/eeprom.h>
@@ -20,7 +20,7 @@
 #define EEPROM_EMPTY_VALUE 255 // Value assigned to EEPROM bytes after an erase operation
 
 extern COMM* comm;
-extern DEVICE* rava_dev;
+extern DEVICE* dev;
 extern PWM* pwm;
 extern RNG* rng;
 extern LAMP* lamp;
@@ -45,7 +45,7 @@ void EEPROM::update_default()
 
   // Write default information if empty
   if (all_empty) {
-    update_device(DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_SLOPE, DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_INTERCEPT);    
+    update_device(DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_SLOPE, DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_INTERCEPT);
     update_pwm(DEFAULT_PWM_FREQ_ID, DEFAULT_PWM_DUTY);
     update_rng(DEFAULT_RNG_SAMPLING_INTERVAL_US);
     update_led(0);
@@ -53,7 +53,7 @@ void EEPROM::update_default()
   }
 
   // Always update firmware
-  update_firmware(); 
+  update_firmware();
 }
 
 void EEPROM::erase()
@@ -129,14 +129,14 @@ void EEPROM::update_firmware()
   firmw_modules |= 1 << 5;
   #endif
 
-  eeprom_update_byte((uint8_t*)EA_FIRMWARE_MODULES, firmw_modules); 
+  eeprom_update_byte((uint8_t*)EA_FIRMWARE_MODULES, firmw_modules);
 }
 
 void EEPROM::send_firmware()
 {
   uint8_t version_major, version_minor, version_patch, parameters;
   read_firmware(&version_major, &version_minor, &version_patch, &parameters);
-  
+
   comm->write_msg_header(COMM_EEPROM_FIRMWARE, version_major, version_minor, version_patch, parameters);
 }
 
@@ -149,7 +149,7 @@ void EEPROM::read_pwm(uint8_t* pwm_freq_id, uint8_t* pwm_duty)
 void EEPROM::update_pwm(uint8_t pwm_freq_id, uint8_t pwm_duty)
 {
   if (pwm->validate_setup_pars(pwm_freq_id, pwm_duty)) {
-    eeprom_update_byte((uint8_t*)EA_PWM_FREQ_ID, pwm_freq_id);  
+    eeprom_update_byte((uint8_t*)EA_PWM_FREQ_ID, pwm_freq_id);
     eeprom_update_byte((uint8_t*)EA_PWM_DUTY, pwm_duty);
   }
 }
@@ -158,7 +158,7 @@ void EEPROM::send_pwm()
 {
   uint8_t pwm_freq_id, pwm_duty;
   read_pwm(&pwm_freq_id, &pwm_duty);
-  
+
   comm->write_msg_header(COMM_EEPROM_PWM, pwm_freq_id, pwm_duty);
 }
 

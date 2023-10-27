@@ -1,60 +1,60 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-The ATmega32u4 microcontroller features four counter/timers (0, 1, 3, and 4) and 
-a watchdog timer. The entropy generation within the RAVA circuit relies on 
-timers 0 and 1 for pulse counting and on timer 4 for the PWM signal. Timer 3 can 
-be optionally employed to generate random bytes at predefined intervals or 
-allocating its functionality to another application related to rava_peripherals. 
-The watchdog timer functions as a 60Hz clock, supporting the operations of the 
+The ATmega32u4 microcontroller features four counter/timers (0, 1, 3, and 4) and
+a watchdog timer. The entropy generation within the RAVA circuit relies on
+timers 0 and 1 for pulse counting and on timer 4 for the PWM signal. Timer 3 can
+be optionally employed to generate random bytes at predefined intervals or
+allocating its functionality to another application related to rava_peripherals.
+The watchdog timer functions as a 60Hz clock, supporting the operations of the
 LED and LAMP modules.
 
 Next, a more detailed description of each timer class.
 
 // TIMER0
-TIMER0 is employed to count digital pulses originating from the PD7 port 
-connected to CMP2. This operation constitutes the foundation for generating 
+TIMER0 is employed to count digital pulses originating from the PD7 port
+connected to CMP2. This operation constitutes the foundation for generating
 entropy within the randomness channel designated as "B".
 
-TIMER0 is also employed the Arduino library to provide functions such as 
-micros(), millis(), and delay(). The Timer0 setup is defined in the init() 
+TIMER0 is also employed the Arduino library to provide functions such as
+micros(), millis(), and delay(). The Timer0 setup is defined in the init()
 function of the wiring.c file as follows:
 
-TCCR0A |= _BV(WGM01) | _BV(WGM00); // Fast PWM, TOP at 0xff  
+TCCR0A |= _BV(WGM01) | _BV(WGM00); // Fast PWM, TOP at 0xff
 TCCR0B |= _BV(CS01) | _BV(CS00); // clk_IO / 64
 TIMSK0 |= _BV(TOIE0); // Ovflow int. enable; Occurs every 256/(16M/64)s=1.024 ms
 
-To broaden the circuit's application range, this functionality remains partially 
-undisturbed: During the random bit generation process, the timer 0 clock 
-configuration is temporarily switched to an external source, being reverted to 
-its original configuration upon task completion. 
+To broaden the circuit's application range, this functionality remains partially
+undisturbed: During the random bit generation process, the timer 0 clock
+configuration is temporarily switched to an external source, being reverted to
+its original configuration upon task completion.
 
 // TIMER1
-TIMER1 is dedicated to count digital pulses originating from the PD6 port 
-connected to CMP1. This operation constitutes the foundation for generating 
+TIMER1 is dedicated to count digital pulses originating from the PD6 port
+connected to CMP1. This operation constitutes the foundation for generating
 entropy within the randomness channel designated as "A".
 
 // TIMER3
-TIMER3 may be employed by the RNG module to trigger the production and 
-transmission of random bytes in a regular interval, or it can be exposed as a 
-peripheral for custom applications as PWM, trigger output, and interrupt at a 
+TIMER3 may be employed by the RNG module to trigger the production and
+transmission of random bytes in a regular interval, or it can be exposed as a
+peripheral for custom applications as PWM, trigger output, and interrupt at a
 given interval -- see rava_peripherals for more details.
 
 The maximum interval that can be achieved is 4194 ms, given by 2**16/(16M/1024).
 
 // TIMER4
-TIMER4 is dedicated to provide the PWM signal used by the boost converter module 
-which converts the 5V USB input into a higher voltage used to create the 
+TIMER4 is dedicated to provide the PWM signal used by the boost converter module
+which converts the 5V USB input into a higher voltage used to create the
 avalanche noise -- see rava_pwm for more details.
 
 It configures the PLL Postcaler Factor to run clk_USB and clk_TMR at 48MHz.
 
 // WDT
-WDT functions as a 60Hz clock -- see rava_led and rava_lamp for more details. 
+WDT functions as a 60Hz clock -- see rava_led and rava_lamp for more details.
 */
 
 #ifndef RAVA_TIMERS_H
@@ -100,7 +100,7 @@ enum WDT_CLOCK {
 class TIMER0
 {
   public:
-    void reset();    
+    void reset();
     void setup_arduino_and_rng();
     void clock_internal();
     void clock_external();
@@ -114,7 +114,7 @@ class TIMER1
   public:
     void reset();
     void setup_rng();
-    
+
     void reset_counter();
     uint8_t read_counter();
 };
@@ -123,9 +123,9 @@ class TIMER3
 {
   public:
     void reset();
-    uint16_t setup_clock(uint16_t delay_ms);
-    void setup_rng_interrupt(uint16_t delay_ms);
-    void setup_trigger_output(uint16_t delay_ms);
+    uint16_t setup_clock(uint16_t interval_ms);
+    void setup_rng_interrupt(uint16_t interval_ms);
+    void setup_trigger_output(uint16_t interval_ms);
     void setup_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
     void setup_input_capture();
 };

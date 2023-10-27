@@ -1,18 +1,18 @@
 /* Copyright (c) 2010, Peter Barrett
 ** Sleep/Wakeup support added by Michael Dreher
-**  
-** Permission to use, copy, modify, and/or distribute this software for  
-** any purpose with or without fee is hereby granted, provided that the  
-** above copyright notice and this permission notice appear in all copies.  
-** 
-** THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL  
-** WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED  
-** WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR  
-** BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES  
-** OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,  
-** WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,  
-** ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS  
-** SOFTWARE.  
+**
+** Permission to use, copy, modify, and/or distribute this software for
+** any purpose with or without fee is hereby granted, provided that the
+** above copyright notice and this permission notice appear in all copies.
+**
+** THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL
+** WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED
+** WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR
+** BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES
+** OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
+** WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+** ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+** SOFTWARE.
 **
 ** Modified by Gabriel Guerrer on "// RAVA" comments
 */
@@ -24,9 +24,9 @@
 #include <avr/boot.h>
 
 // RAVA
-#include <rava_device.h> 
-#include <rava_config.h> 
-extern DEVICE* rava_dev;
+#include <rava_device.h>
+#include <rava_config.h>
+extern DEVICE* dev;
 
 #if defined(USBCON)
 
@@ -65,10 +65,10 @@ const u16 STRING_LANGUAGE[2] = {
 #undef RXLED0
 #undef RXLED1
 #undef TX_RX_LED_INIT
-#define TXLED0			
-#define TXLED1			
-#define RXLED0			
-#define RXLED1			
+#define TXLED0
+#define TXLED1
+#define RXLED0
+#define RXLED1
 #define TX_RX_LED_INIT
 
 const u8 STRING_PRODUCT[] PROGMEM = USB_PRODUCT;
@@ -137,9 +137,9 @@ static inline void Recv(volatile u8* data, u8 count)
 {
 	while (count--)
 		*data++ = UEDATX;
-	
+
 	RXLED1;					// light the RX LED
-	RxLEDPulse = TX_RX_LED_PULSE_MS;	
+	RxLEDPulse = TX_RX_LED_PULSE_MS;
 }
 
 static inline u8 Recv8()
@@ -147,7 +147,7 @@ static inline u8 Recv8()
 	RXLED1;					// light the RX LED
 	RxLEDPulse = TX_RX_LED_PULSE_MS;
 
-	return UEDATX;	
+	return UEDATX;
 }
 
 static inline void Send8(u8 d)
@@ -247,7 +247,7 @@ int USB_Recv(u8 ep, void* d, int len)
 {
 	if (!_usbConfiguration || len < 0)
 		return -1;
-	
+
 	LockEP lock(ep);
 	u8 n = FifoByteCount();
 	len = min(n,len);
@@ -257,7 +257,7 @@ int USB_Recv(u8 ep, void* d, int len)
 		*dst++ = Recv8();
 	if (len && !FifoByteCount())	// release empty buffer
 		ReleaseRX();
-	
+
 	return len;
 }
 
@@ -353,7 +353,7 @@ int USB_Send(u8 ep, const void* d, int len)
 u8 _initEndpoints[USB_ENDPOINTS] =
 {
 	0,                      // Control Endpoint
-	
+
 	EP_TYPE_INTERRUPT_IN,   // CDC_ENDPOINT_ACM
 	EP_TYPE_BULK_OUT,       // CDC_ENDPOINT_OUT
 	EP_TYPE_BULK_IN,        // CDC_ENDPOINT_IN
@@ -468,7 +468,7 @@ static bool USB_SendStringDescriptor(const u8*string_P, u8 string_len, uint8_t f
 // RAVA
 static bool USB_SendSNDescriptor() {
 	byte sn[8];
-	rava_dev->get_serial_number(sn);
+	dev->get_serial_number(sn);
 
     SendControl(2 + 8 * 2);
     SendControl(3);
@@ -802,7 +802,7 @@ ISR(USB_GEN_vect)
 	if (udint & (1<<SOFI))
 	{
 		USB_Flush(CDC_TX);				// Send a tx frame if found
-		
+
 		// check whether the one-shot period has elapsed.  if so, turn off the LED
 		if (TxLEDPulse && !(--TxLEDPulse))
 			TXLED0;
@@ -862,7 +862,7 @@ void USBDevice_::attach()
 
 	UDINT &= ~((1<<WAKEUPI) | (1<<SUSPI)); // clear already pending WAKEUP / SUSPEND requests
 	UDIEN = (1<<EORSTE) | (1<<SOFE) | (1<<SUSPE);	// Enable interrupts for EOR (End of Reset), SOF (start of frame) and SUSPEND
-	
+
 	TX_RX_LED_INIT;
 }
 

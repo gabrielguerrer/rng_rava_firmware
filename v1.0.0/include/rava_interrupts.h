@@ -1,14 +1,14 @@
 /**
  * Copyright (c) 2023 Gabriel Guerrer
- * 
- * Distributed under the MIT license - See LICENSE for details 
+ *
+ * Distributed under the MIT license - See LICENSE for details
  */
 
 /*
-This file contains the definitions of all the interrupt functions utilized in 
+This file contains the definitions of all the interrupt functions utilized in
 the firmware code.
 
-The users should modify the functions associated with peripheral actions to 
+The users should modify the functions associated with peripheral actions to
 implement their specific needs.
 */
 
@@ -33,14 +33,14 @@ extern D4* d4;
 extern D5* d5;
 
 // Used by RNG bytes stream
-ISR (TIMER3_COMPA_vect) 
+ISR (TIMER3_COMPA_vect)
 {
   if (rng->stream_cfg.ready)
     rng->send_bytes_stream();
 }
 
 // Used by LED and LAMP tick functions
-ISR (WDT_vect) 
+ISR (WDT_vect)
 {
   #if defined(FIRMWARE_LED_ENABLED)
   led->tick_increment();
@@ -57,13 +57,13 @@ ISR (WDT_vect)
 #if defined(FIRMWARE_PERIPHERALS_ENABLED)
 
 // D2::setup_timer3_input_capture()
-ISR (TIMER3_CAPT_vect) 
+ISR (TIMER3_CAPT_vect)
 {
-  d2->send_timer3_input_capture_count();
+  d2->send_timer3_input_capture_interval();
 }
 
 // D2::setup_timer3_input_capture()
-ISR (TIMER3_OVF_vect) 
+ISR (TIMER3_OVF_vect)
 {
   d2->timer3_overflow_n += 1;
 }
@@ -72,19 +72,21 @@ ISR (TIMER3_OVF_vect)
 ISR (INT6_vect)
 {
   // Define the action to be taken on a trigger detection. Example:
-  // d2->write_pulse(100);
+  d5->write_pulse(100);
 }
 
 // D1::setup_comparator()
 ISR (ANALOG_COMP_vect)
 {
-  // Define the action to be taken on a comparator event
+  // Define the action to be taken on a comparator event. Example:
+  d5->write_pulse(100);
 }
 
 // D4::setup_pin_change()
 ISR (PCINT0_vect)
 {
-  // Define the action to be taken o pin change detection
+  // Define the action to be taken o pin change detection. Example:
+  d5->write_pulse(100);
 }
 #endif
 
