@@ -441,33 +441,30 @@ void RNG::send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uin
   read_finalize();
 }
 
-uint8_t RNG::gen_int8(uint8_t int_delta)
+void RNG::gen_int8s(uint8_t& int_delta, uint8_t* gen_ints, uint8_t& gen_flag)
 {
   // Vars
   uint8_t min_bits = (uint8_t)ceil(log(int_delta)/log(2));
   uint8_t min_bits_mask = (uint8_t)bit_mask_1s(min_bits);
-  uint8_t rnd_int;
+  uint8_t rnd_a, rnd_b;
+  gen_flag = 0;
 
-  // Loop and generate
-  uint8_t rnd[2];
-  while (true) {
+  // Generate two random bytes
+  read_byte(&rnd_a, &rnd_b);
 
-    // Generate two random bytes
-    read_byte(&rnd[0], &rnd[1]);
+  // Apply bit mask
+  rnd_a &= min_bits_mask;
+  rnd_b &= min_bits_mask;
 
-    // Xor them
-    rnd_int = rnd[0] ^ rnd[1];
-
-    // Apply bit mask
-    rnd_int &= min_bits_mask;
-
-    // Test range
-    if (rnd_int < int_delta) {
-      break;
-    }
+  // Test range
+  if (rnd_a < int_delta) {
+    gen_flag |= B01;
+    gen_ints[0] = rnd_a;
   }
-
-  return rnd_int;
+  if (rnd_b < int_delta) {
+    gen_flag |= B10;
+    gen_ints[1] = rnd_b;
+  }
 }
 
 void RNG::send_int8s(uint32_t n_ints, uint8_t int_delta)
@@ -483,49 +480,76 @@ void RNG::send_int8s(uint32_t n_ints, uint8_t int_delta)
   read_initialize();
 
   // Generate and send ints
-  uint8_t rnd8;
-  for (uint32_t i=0; i < n_ints; i++) {
-    rnd8 = gen_int8(int_delta);
-    comm->write(rnd8);
+  uint8_t gen_flag, rnd[2];
+
+  for (uint32_t i=0; i < n_ints; ) {
+
+    gen_int8s(int_delta, rnd, gen_flag);
+
+    if (gen_flag == B01) {
+      comm->write(rnd[0]);
+      i += 1;
+    }
+    else if (gen_flag == B10) {
+      comm->write(rnd[1]);
+      i += 1;
+    }
+    else if (gen_flag == B11) {
+      if (n_ints - i == 1) {
+        comm->write(rnd[0]);
+        i += 1;
+      }
+      else {
+        comm->write(rnd, 2);
+        i += 2;
+      }
+    }
   }
 
   // Finalize
   read_finalize();
 }
 
-uint16_t RNG::gen_int16(uint16_t int_delta)
+void RNG::gen_int16s(uint16_t& int_delta, uint16_t* gen_ints, uint8_t& gen_flag)
 {
   // Vars
   uint8_t min_bits = (uint8_t)ceil(log(int_delta)/log(2));
   uint16_t min_bits_mask = (uint16_t)bit_mask_1s(min_bits);
   uint8_t min_bytes = (uint8_t)ceil((float)min_bits/8);
-  uint16_t rnd_int;
 
-  // Loop and generate
   uint8_t rnd[2];
-  while (true) {
-    for (uint8_t i=0; i<min_bytes; i++) {
+  uint16_t rnd_a, rnd_b;
+  gen_flag = 0;
 
-      // Generate two random bytes
-      read_byte(&rnd[0], &rnd[1]);
+  for (uint8_t i=0; i<min_bytes; i++) {
 
-      // Xor them and shift as required
-      if (i == 0)
-        rnd_int = rnd[0] ^ rnd[1];
-      else
-        rnd_int |= (rnd[0] ^ rnd[1]) << (i*8);
+    // Generate two random bytes
+    read_byte(&rnd[0], &rnd[1]);
+
+    // Shift as required
+    if (i == 0) {
+      rnd_a = rnd[0];
+      rnd_b = rnd[1];
     }
-
-    // Apply bit mask
-    rnd_int &= min_bits_mask;
-
-    // Test range
-    if (rnd_int < int_delta) {
-      break;
+    else {
+      rnd_a |= rnd[0] << (i*8);
+      rnd_b |= rnd[1] << (i*8);
     }
   }
 
-  return rnd_int;
+  // Apply bit mask
+  rnd_a &= min_bits_mask;
+  rnd_b &= min_bits_mask;
+
+  // Test range
+  if (rnd_a < int_delta) {
+    gen_flag |= B01;
+    gen_ints[0] = rnd_a;
+  }
+  if (rnd_b < int_delta) {
+    gen_flag |= B10;
+    gen_ints[1] = rnd_b;
+  }
 }
 
 void RNG::send_int16s(uint32_t n_ints, uint16_t int_delta)
@@ -541,12 +565,80 @@ void RNG::send_int16s(uint32_t n_ints, uint16_t int_delta)
   read_initialize();
 
   // Generate and send ints
-  uint16_t rnd16;
-  for (uint32_t i=0; i < n_ints; i++) {
-    rnd16 = gen_int16(int_delta);
-    comm->write(rnd16);
+  uint8_t gen_flag;
+  uint16_t rnd[2];
+
+  for (uint32_t i=0; i < n_ints; ) {
+
+    gen_int16s(int_delta, rnd, gen_flag);
+
+    if (gen_flag == B01) {
+      comm->write(rnd[0]);
+      i += 1;
+    }
+    else if (gen_flag == B10) {
+      comm->write(rnd[1]);
+      i += 1;
+    }
+    else if (gen_flag == B11) {
+      if (n_ints - i == 1) {
+        comm->write(rnd[0]);
+        i += 1;
+      }
+      else {
+        comm->write(rnd[0]);
+        comm->write(rnd[1]);
+        i += 2;
+      }
+    }
   }
 
+  // Finalize
+  read_finalize();
+}
+
+void RNG::gen_floats(float* gen_floats)
+{
+  // Generate 3 random bytes
+  float_union f_a, f_b;
+  for (byte i=1; i < 4; i++)  {
+    read_byte(&f_a.b[i], &f_b.b[i]);
+  }
+
+  // IEEE754 bit pattern for single precision floating point value in the range of 1.0 - 2.0
+  // Uses the first 23 bits and fixes the float exponent to 127
+  f_a.i = (f_a.i & 0x007FFFFF) | 0x3F800000;
+  f_a.f -= 1;
+  gen_floats[0] = f_a.f;
+
+  f_b.i = (f_b.i & 0x007FFFFF) | 0x3F800000;
+  f_b.f -= 1;
+  gen_floats[1] = f_b.f;
+}
+
+void RNG::send_floats(uint32_t n_floats)
+{
+  // Send header
+  comm->write_msg_header(COMM_RNG_FLOATS, n_floats);
+
+  // Initialize
+  read_initialize();
+
+  // Generate and send floats
+  float fs[2];
+
+  for (uint32_t i=0; i < n_floats/2; i++) {
+    gen_floats(fs);
+    comm->write(fs[0]);
+    comm->write(fs[1]);
+  }
+
+  // n_floats is odd? Send last one
+  if (n_floats % 2) {
+    gen_floats(fs);
+    comm->write(fs[0]);
+  }
+  
   // Finalize
   read_finalize();
 }

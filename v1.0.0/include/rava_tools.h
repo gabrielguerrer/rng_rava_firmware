@@ -26,6 +26,7 @@ typedef union {
 typedef union {
   float f;
   uint8_t b[4];
+  uint32_t i;
 } float_union;
 
 uint16_t unpack_int(uint8_t b0, uint8_t b1);

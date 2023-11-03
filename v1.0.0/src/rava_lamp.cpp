@@ -237,7 +237,10 @@ void LAMP::experiment_reset_vars()
   trial_mag = 0;
 
   // Pick a random color
-  uint8_t idx_color = rng->gen_int8(8);
+  uint8_t idx_color, rnd[2];
+  rng->read_byte(&rnd[0], &rnd[1]);
+  idx_color = 0b111 & (rnd[0] ^ rnd[1]);
+
   led->set_color(led_colors[idx_color], 0);
 }
 

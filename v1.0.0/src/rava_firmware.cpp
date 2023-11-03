@@ -439,6 +439,13 @@ void task_serial_read(COMM* comm_task)
       break;
     }
 
+    case COMM_RNG_FLOATS: {
+      uint32_t n_floats = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
+
+      rng->send_floats(n_floats);
+      break;
+    }
+
     case COMM_RNG_STREAM_START: {
       uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);
       uint8_t postproc_id = msg_bytes[3];

@@ -87,10 +87,8 @@ Summarizing, the RNG class provides methods for generating and transmitting:
 * Single bits -- send_bits()
 * Random Bytes -- send_bytes()
 * Random bytes at regular intervals -- start_bytes_stream()
-* Random integers in a certain (min, max) interval -- send_int8s() and send_int16s()
-
-Where the generation of random floats in the (0, 1) interval is achieved in the
-driver level by using random bytes as input.
+* Random integers in the [0, int_max) interval -- send_int8s() and send_int16s()
+* Random floats in the [0, 1) interval -- send_floats()
 */
 
 #ifndef RAVA_RNG_H
@@ -154,10 +152,12 @@ class RNG
     void read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b);
     void send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uint8_t request_id=0);
 
-    uint8_t gen_int8(uint8_t int_delta);
+    void gen_int8s(uint8_t& int_delta, uint8_t* res_ints, uint8_t& res_flag);
     void send_int8s(uint32_t n_ints, uint8_t int_delta);
-    uint16_t gen_int16(uint16_t int_delta);
+    void gen_int16s(uint16_t& int_delta, uint16_t* res_ints, uint8_t& res_flag);
     void send_int16s(uint32_t n_ints, uint16_t int_delta);
+    void gen_floats(float* res_floats);
+    void send_floats(uint32_t n_floats);
 
     void start_bytes_stream(uint16_t n_bytes, uint8_t postproc_id, uint16_t interval_ms);
     void stop_bytes_stream();
