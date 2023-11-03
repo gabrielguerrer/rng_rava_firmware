@@ -274,12 +274,12 @@ bool D5::validate_adc_pars(uint8_t clk_prescaler, uint8_t oversampling_n_bits)
   return true;
 }
 
-void D5::send_adc(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits)
+void D5::send_adc_reading(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits)
 {
   if (!validate_adc_pars(clk_prescaler, oversampling_n_bits))
     return;
 
   // Measure and send adc voltage
-  float adc_read_v = adc_comp->read_adc12_v(ref_5v, clk_prescaler, oversampling_n_bits);
-  comm->write_msg_header(COMM_PERIPH_D5_ADC, adc_read_v);
+  float adc_reading = adc_comp->read_adc_ch12_volts(ref_5v, clk_prescaler, oversampling_n_bits);
+  comm->write_msg_header(COMM_PERIPH_D5_ADC, adc_reading);
 }

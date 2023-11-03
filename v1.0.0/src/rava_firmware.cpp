@@ -230,6 +230,7 @@ void task_serial_read(COMM* comm_task)
   uint8_t msg_command_id = comm_task->read_msg_header(msg_bytes);
 
   if (msg_command_id) {
+
     // Yes, specify the communication device to which the modules will refer
     comm = (COMM*) comm_task;
 
@@ -688,7 +689,7 @@ void task_serial_read(COMM* comm_task)
       uint8_t oversampling_n_bits = msg_bytes[4];
 
       if (on)
-        d5->send_adc(ref_5v, clk_prescaler, oversampling_n_bits);
+        d5->send_adc_reading(ref_5v, clk_prescaler, oversampling_n_bits);
       else
         d5->reset_adc();
       break;
@@ -707,10 +708,10 @@ void task_serial_read(COMM* comm_task)
   }
 }
 
-// Used to send rng byte stream when interval_ms == 0
-void task_rng_stream_zero_delay()
+// Streaming mode: Send data when triggered
+void task_rng_stream()
 {
-  if ((rng->stream_cfg.streaming) && (rng->stream_cfg.interval_ms == 0)){
+  if ((rng->stream_cfg.streaming) && (rng->stream_cfg.triggered)){
     rng->send_bytes_stream();
   }
 }
@@ -759,8 +760,8 @@ void loop()
   task_serial_read(serial);
   #endif
 
-  // RNG streaming bytes with 0 delay?
-  task_rng_stream_zero_delay();
+  // RNG Streaming?
+  task_rng_stream();
 
   // LED fading?
   #if defined(FIRMWARE_LED_ENABLED)

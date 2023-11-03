@@ -114,8 +114,8 @@ enum RNG_BYTE_POST_PROCESSING {
   };
 
 struct RNG_BYTE_STREAM {
-  bool streaming = false;
-  volatile bool ready = true; // Used in (ISR) TIMER3_COMPA_vect
+  volatile bool streaming = false;
+  volatile bool triggered = false; // Used in (ISR) TIMER3_COMPA_vect
   uint16_t n_bytes;
   uint8_t postproc_id;
   uint16_t interval_ms;

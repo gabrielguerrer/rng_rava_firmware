@@ -13,12 +13,6 @@ uint16_t unpack_int(uint8_t b0, uint8_t b1)
   return res;
 }
 
-int16_t unpack_int_signed(uint8_t b0, uint8_t b1)
-{
-  int16_t res = b0 | (uint16_t)b1 << 8;
-  return res;
-}
-
 uint32_t unpack_long(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3)
 {
   uint32_t res = b0 | (uint16_t)b1 << 8 | (uint32_t)b2 << 16 | (uint32_t)b3 << 24;

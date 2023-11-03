@@ -35,8 +35,7 @@ extern D5* d5;
 // Used by RNG bytes stream
 ISR (TIMER3_COMPA_vect)
 {
-  if (rng->stream_cfg.ready)
-    rng->send_bytes_stream();
+  rng->stream_cfg.triggered = true;
 }
 
 // Used by LED and LAMP tick functions

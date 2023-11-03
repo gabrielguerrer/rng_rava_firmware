@@ -56,7 +56,7 @@ void DEVICE::send_serial_number()
 float DEVICE::get_temperature()
 {
   // Get internal temperature reading in millivolts
-  float temp_v = adc_comp->read_temperature_v();
+  float temp_v = adc_comp->read_adc_chtemp_volts();
 
   // Read conversion parameters stored in the EEPROM
   uint16_t temp_slope;

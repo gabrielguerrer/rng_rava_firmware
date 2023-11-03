@@ -164,7 +164,7 @@ class D5 : public PERIPH
 
     void reset_adc();
     bool validate_adc_pars(uint8_t clk_prescaler, uint8_t oversampling_n_bits);
-    void send_adc(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits);
+    void send_adc_reading(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits);
 };
 
 #endif

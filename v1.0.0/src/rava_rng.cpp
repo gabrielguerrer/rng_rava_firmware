@@ -560,19 +560,19 @@ void RNG::start_bytes_stream(uint16_t n_bytes, uint8_t postproc_id, uint16_t int
     return;
 
   // Initialize vars
-  stream_cfg.streaming = true;
-  stream_cfg.ready = true;
+  stream_cfg.streaming = true;  
   stream_cfg.n_bytes = n_bytes;
   stream_cfg.postproc_id = postproc_id;
   stream_cfg.interval_ms = interval_ms;
-
-  // Delay type
+  
   if (interval_ms == 0) {
-    // See task_rng_stream_zero_delay()
+    stream_cfg.triggered = true;
   }
   else {
-    // Configure Timer3
-    timer3->setup_rng_interrupt(interval_ms); // Activates ISR (TIMER3_COMPA_vect)
+    stream_cfg.triggered = false;
+
+    // Timer3 interrupt sets the stream trigger
+    timer3->setup_rng_interrupt(interval_ms);     
   }
 }
 
@@ -584,11 +584,16 @@ void RNG::stop_bytes_stream()
 
 void RNG::send_bytes_stream()
 {
-  // The ready variable is used to prevent the device from becoming unresponsive
-  // when the time took by send_bytes_stream() is larger than the stream delay
-  stream_cfg.ready=false;
-  send_bytes(stream_cfg.n_bytes, stream_cfg.postproc_id, COMM_RNG_STREAM_BYTES);
-  stream_cfg.ready=true;
+  // Send data
+  send_bytes((uint32_t)stream_cfg.n_bytes, stream_cfg.postproc_id, COMM_RNG_STREAM_BYTES, 0);
+
+  // Stream trigger
+  if (stream_cfg.interval_ms == 0)
+    // Always on
+    stream_cfg.triggered = true;
+  else 
+    // Wait for next TIMER3_COMPA_vect interrupt
+    stream_cfg.triggered = false;
 }
 
 void RNG::send_bytes_stream_status()

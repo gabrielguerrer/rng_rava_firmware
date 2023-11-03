@@ -29,7 +29,6 @@ typedef union {
 } float_union;
 
 uint16_t unpack_int(uint8_t b0, uint8_t b1);
-int16_t unpack_int_signed(uint8_t b0, uint8_t b1);
 uint32_t unpack_long(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3);
 float unpack_float(uint8_t b0, uint8_t b1, uint8_t b2, uint8_t b3);
 

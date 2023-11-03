@@ -30,14 +30,14 @@ class ADC_COMP
   public:
     void reset();
 
-    void setup_adc12(uint8_t ref_5v, uint8_t clk_prescaler);
+    void setup_adc_ch12(uint8_t ref_5v, uint8_t clk_prescaler);    
+    void setup_adc_chtemp();
     void setup_comparator(uint8_t neg_to_adc12);
-    void setup_temperature();
 
-    float read_adc_v(uint8_t ref_5v, uint8_t oversampling_n_bits);
+    float read_adc_volts(uint8_t ref_5v, uint8_t oversampling_n_bits);
 
-    float read_adc12_v(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits);
-    float read_temperature_v();
+    float read_adc_ch12_volts(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits);
+    float read_adc_chtemp_volts();
 };
 
 #endif
