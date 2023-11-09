@@ -39,46 +39,12 @@ RNG::RNG()
   setup(true);
 }
 
-bool RNG::validate_sampling_interval(uint8_t sampling_interval_us)
+bool RNG::validate_setup_pars(uint8_t sampling_interval_us)
 {
-  if (sampling_interval_us == 0)
+  if (sampling_interval_us > 0)  
+    return true;
+  else
     return false;
-  return true;
-}
-
-bool RNG::validate_bit_source(uint8_t bit_source)
-{
-  if ((bit_source == 0) || (bit_source > 5))
-    return false;
-  return true;
-}
-
-bool RNG::validate_postproc_id(uint8_t postproc_id)
-{
-  if (postproc_id > 3)
-    return false;
-  return true;
-}
-
-bool RNG::validate_byte_stream_delay(uint16_t interval_ms)
-{
-  if (interval_ms > TIMER3_MAXIMUM_DELAY_MS)
-    return false;
-  return true;
-}
-
-bool RNG::validate_int_delta(uint8_t int_delta)
-{
-  if (int_delta < 2)
-    return false;
-  return true;
-}
-
-bool RNG::validate_int_delta(uint16_t int_delta)
-{
-  if (int_delta < 2)
-    return false;
-  return true;
 }
 
 void RNG::setup(bool eeprom_value, uint8_t sampling_interval_us)
@@ -88,7 +54,7 @@ void RNG::setup(bool eeprom_value, uint8_t sampling_interval_us)
     eeprom->read_rng(&sampling_interval_us);
 
   // Validate pars and config
-  if (validate_sampling_interval(sampling_interval_us))
+  if (validate_setup_pars(sampling_interval_us))
     m_sampling_interval_us = sampling_interval_us;
 }
 
@@ -149,8 +115,12 @@ void RNG::read_pulse_count(uint8_t* rng_a, uint8_t* rng_b)
   *rng_b = timer0->read_counter();
 }
 
-void RNG::send_pulse_counts(uint32_t n_counts)
+void RNG::send_pulse_counts(uint16_t n_counts)
 {
+  // Validate pars
+  if (n_counts == 0)
+    return;
+
   // Send header
   comm->write_msg_header(COMM_RNG_PULSE_COUNTS, n_counts);
 
@@ -159,7 +129,7 @@ void RNG::send_pulse_counts(uint32_t n_counts)
 
   // Loop, measure, and write pulse counts
   uint8_t pc[2];
-  for (uint32_t i = 0; i < n_counts; i++) {
+  for (uint16_t i = 0; i < n_counts; i++) {
 
     // Timing debug
     if (d1_timing_debug)
@@ -255,8 +225,8 @@ void RNG::read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source)
 
 void RNG::send_bits(uint8_t bit_source)
 {
-  // Validate bit_source
-  if (!validate_bit_source(bit_source))
+  // Validate pars
+  if ((bit_source == 0) || (bit_source > 5))
     return;
 
   // Initialize
@@ -403,10 +373,12 @@ void RNG::read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b)
   #endif
 }
 
-void RNG::send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uint8_t request_id)
+void RNG::send_bytes(uint16_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uint8_t request_id)
 {
-  // Validate postproc_id
-  if (!validate_postproc_id(postproc_id))
+  // Validate pars
+  if (n_bytes == 0)
+    return;
+  if (postproc_id > 3)
     return;
 
   // Link to appropriate post-processing functiong
@@ -420,7 +392,7 @@ void RNG::send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uin
 
   // Loop over n_bytes
   uint8_t rnd[2];
-  for (uint32_t i = 0; i < n_bytes; i++) {
+  for (uint16_t i = 0; i < n_bytes; i++) {
 
     // Timing debug
     if (d1_timing_debug)
@@ -467,10 +439,12 @@ void RNG::gen_int8s(uint8_t& int_delta, uint8_t* gen_ints, uint8_t& gen_flag)
   }
 }
 
-void RNG::send_int8s(uint32_t n_ints, uint8_t int_delta)
+void RNG::send_int8s(uint16_t n_ints, uint8_t int_delta)
 {
-  // Validate postproc_id
-  if (!validate_int_delta(int_delta))
+  // Validate pars
+  if (n_ints == 0)
+    return;
+  if (int_delta < 2)
     return;
 
   // Send header
@@ -482,7 +456,7 @@ void RNG::send_int8s(uint32_t n_ints, uint8_t int_delta)
   // Generate and send ints
   uint8_t gen_flag, rnd[2];
 
-  for (uint32_t i=0; i < n_ints; ) {
+  for (uint16_t i=0; i < n_ints; ) {
 
     gen_int8s(int_delta, rnd, gen_flag);
 
@@ -552,10 +526,12 @@ void RNG::gen_int16s(uint16_t& int_delta, uint16_t* gen_ints, uint8_t& gen_flag)
   }
 }
 
-void RNG::send_int16s(uint32_t n_ints, uint16_t int_delta)
+void RNG::send_int16s(uint16_t n_ints, uint16_t int_delta)
 {
-  // Validate postproc_id
-  if (!validate_int_delta(int_delta))
+  // Validate pars
+  if (n_ints == 0)
+    return;
+  if (int_delta < 2)
     return;
 
   // Send header
@@ -568,7 +544,7 @@ void RNG::send_int16s(uint32_t n_ints, uint16_t int_delta)
   uint8_t gen_flag;
   uint16_t rnd[2];
 
-  for (uint32_t i=0; i < n_ints; ) {
+  for (uint16_t i=0; i < n_ints; ) {
 
     gen_int16s(int_delta, rnd, gen_flag);
 
@@ -616,8 +592,12 @@ void RNG::gen_floats(float* gen_floats)
   gen_floats[1] = f_b.f;
 }
 
-void RNG::send_floats(uint32_t n_floats)
+void RNG::send_floats(uint16_t n_floats)
 {
+  // Validate pars
+  if (n_floats == 0)
+    return;
+
   // Send header
   comm->write_msg_header(COMM_RNG_FLOATS, n_floats);
 
@@ -627,7 +607,7 @@ void RNG::send_floats(uint32_t n_floats)
   // Generate and send floats
   float fs[2];
 
-  for (uint32_t i=0; i < n_floats/2; i++) {
+  for (uint16_t i=0; i < n_floats/2; i++) {
     gen_floats(fs);
     comm->write(fs[0]);
     comm->write(fs[1]);
@@ -643,12 +623,14 @@ void RNG::send_floats(uint32_t n_floats)
   read_finalize();
 }
 
-void RNG::start_bytes_stream(uint16_t n_bytes, uint8_t postproc_id, uint16_t interval_ms)
+void RNG::start_bytes_stream(uint16_t n_bytes, uint16_t interval_ms, uint8_t postproc_id)
 {
   // Validate pars
-  if (!validate_postproc_id(postproc_id))
+  if (n_bytes == 0)
     return;
-  if (!validate_byte_stream_delay(interval_ms))
+  if (postproc_id > 3)
+    return;
+  if (interval_ms > TIMER3_MAXIMUM_DELAY_MS)
     return;
 
   // Initialize vars
@@ -677,7 +659,7 @@ void RNG::stop_bytes_stream()
 void RNG::send_bytes_stream()
 {
   // Send data
-  send_bytes((uint32_t)stream_cfg.n_bytes, stream_cfg.postproc_id, COMM_RNG_STREAM_BYTES, 0);
+  send_bytes(stream_cfg.n_bytes, stream_cfg.postproc_id, COMM_RNG_STREAM_BYTES, 0);
 
   // Stream trigger
   if (stream_cfg.interval_ms == 0)

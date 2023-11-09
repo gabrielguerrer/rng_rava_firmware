@@ -124,13 +124,7 @@ class RNG
   public:
     RNG();
 
-    bool validate_sampling_interval(uint8_t sampling_interval_us);
-    bool validate_bit_source(uint8_t bit_source);
-    bool validate_postproc_id(uint8_t postproc_id);
-    bool validate_byte_stream_delay(uint16_t interval_ms);
-    bool validate_int_delta(uint8_t int_delta);
-    bool validate_int_delta(uint16_t int_delta);
-
+    bool validate_setup_pars(uint8_t sampling_interval_us);
     void setup(bool eeprom_value, uint8_t sampling_interval_us=0);
     uint8_t get_sampling_interval();
     void send_setup();
@@ -141,7 +135,7 @@ class RNG
     void read_finalize();
 
     void read_pulse_count(uint8_t* rng_a, uint8_t* rng_b);
-    void send_pulse_counts(uint32_t n_counts);
+    void send_pulse_counts(uint16_t n_counts);
 
     void read_bit(uint8_t* rng_a, uint8_t* rng_b, uint8_t &bit_source);
     void send_bits(uint8_t bit_source);
@@ -150,16 +144,16 @@ class RNG
     void read_byte_pp_xor(uint8_t* rng_a, uint8_t* rng_b);
     void read_byte_pp_xor_dichtl(uint8_t* rng_a, uint8_t* rng_b);
     void read_byte_pp_von_neumann(uint8_t* rng_a, uint8_t* rng_b);
-    void send_bytes(uint32_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uint8_t request_id=0);
+    void send_bytes(uint16_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uint8_t request_id=0);
 
     void gen_int8s(uint8_t& int_delta, uint8_t* res_ints, uint8_t& res_flag);
-    void send_int8s(uint32_t n_ints, uint8_t int_delta);
+    void send_int8s(uint16_t n_ints, uint8_t int_delta);
     void gen_int16s(uint16_t& int_delta, uint16_t* res_ints, uint8_t& res_flag);
-    void send_int16s(uint32_t n_ints, uint16_t int_delta);
+    void send_int16s(uint16_t n_ints, uint16_t int_delta);
     void gen_floats(float* res_floats);
-    void send_floats(uint32_t n_floats);
+    void send_floats(uint16_t n_floats);
 
-    void start_bytes_stream(uint16_t n_bytes, uint8_t postproc_id, uint16_t interval_ms);
+    void start_bytes_stream(uint16_t n_bytes, uint16_t interval_ms, uint8_t postproc_id);
     void stop_bytes_stream();
     void send_bytes_stream();
     void send_bytes_stream_status();

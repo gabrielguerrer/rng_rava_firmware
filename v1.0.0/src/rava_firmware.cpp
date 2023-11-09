@@ -393,8 +393,8 @@ void task_serial_read(COMM* comm_task)
       break;
     }
 
-    case COMM_RNG_PULSE_COUNTS: {
-      uint32_t n_counts = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
+    case COMM_RNG_PULSE_COUNTS: {      
+      uint16_t n_counts = unpack_int(msg_bytes[1], msg_bytes[2]);
 
       rng->send_pulse_counts(n_counts);
       break;
@@ -408,9 +408,9 @@ void task_serial_read(COMM* comm_task)
     }
 
     case COMM_RNG_BYTES: {
-      uint32_t n_bytes = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
-      uint8_t postproc_id = msg_bytes[5];
-      uint8_t request_id = msg_bytes[6];
+      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);
+      uint8_t postproc_id = msg_bytes[3];
+      uint8_t request_id = msg_bytes[4];
 
       rng->send_bytes(n_bytes, postproc_id, COMM_RNG_BYTES, request_id);
       break;
@@ -424,34 +424,34 @@ void task_serial_read(COMM* comm_task)
     }
 
     case COMM_RNG_INT8S: {
-      uint32_t n_ints = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
-      uint8_t int_delta = msg_bytes[5];
+      uint16_t n_ints = unpack_int(msg_bytes[1], msg_bytes[2]);
+      uint8_t int_delta = msg_bytes[3];
 
       rng->send_int8s(n_ints, int_delta);
       break;
     }
 
     case COMM_RNG_INT16S: {
-      uint32_t n_ints = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
-      uint16_t int_delta = unpack_int(msg_bytes[5], msg_bytes[6]);
+      uint16_t n_ints = unpack_int(msg_bytes[1], msg_bytes[2]);
+      uint16_t int_delta = unpack_int(msg_bytes[3], msg_bytes[4]);
 
       rng->send_int16s(n_ints, int_delta);
       break;
     }
 
     case COMM_RNG_FLOATS: {
-      uint32_t n_floats = unpack_long(msg_bytes[1], msg_bytes[2], msg_bytes[3], msg_bytes[4]);
+      uint16_t n_floats = unpack_int(msg_bytes[1], msg_bytes[2]);
 
       rng->send_floats(n_floats);
       break;
     }
 
     case COMM_RNG_STREAM_START: {
-      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);
-      uint8_t postproc_id = msg_bytes[3];
-      uint16_t stream_interval_ms = unpack_int(msg_bytes[4], msg_bytes[5]);
+      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);      
+      uint16_t stream_interval_ms = unpack_int(msg_bytes[3], msg_bytes[4]);
+      uint8_t postproc_id = msg_bytes[5];
 
-      rng->start_bytes_stream(n_bytes, postproc_id, stream_interval_ms);
+      rng->start_bytes_stream(n_bytes, stream_interval_ms, postproc_id);
       break;
     }
 

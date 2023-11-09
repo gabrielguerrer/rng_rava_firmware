@@ -34,7 +34,8 @@ PERIPH::PERIPH(uint8_t* port_cfg):
   m_ddr_addr(port_cfg[1]),
   m_pin_addr(port_cfg[2]),
   m_port_i(port_cfg[3])
-{}
+{
+}
 
 void PERIPH::mode_output()
 {
@@ -58,16 +59,9 @@ void PERIPH::write_hi()
   _SFR_IO8(m_port_addr) |= _BV(m_port_i);
 }
 
-bool PERIPH::validate_duration(uint16_t duration_us)
-{
-  if (duration_us == 0)
-    return false;
-  return true;
-}
-
 void PERIPH::write_pulse(uint16_t duration_us)
 {
-  if (!validate_duration(duration_us))
+  if (duration_us == 0)
     return;
 
   write_hi();
@@ -135,16 +129,10 @@ void D1::setup_comparator(uint8_t neg_to_d5)
   adc_comp->setup_comparator(neg_to_d5);
 }
 
-bool D1::validate_delay(uint8_t delay_us)
-{
-  if (delay_us == 0)
-    return false;
-  return true;
-}
-
 void D1::delay_us_test(uint8_t delay_us)
 {
-  if (!validate_delay(delay_us))
+  // Validate pars
+  if (delay_us == 0)
     return;
 
   cli();
@@ -189,13 +177,6 @@ D3::D3():
 {
 }
 
-bool D3::validate_interval(uint16_t interval_ms)
-{
-  if ((interval_ms == 0) or (interval_ms > TIMER3_MAXIMUM_DELAY_MS))
-    return false;
-  return true;
-}
-
 void D3::reset_timer3_trigger_output()
 {
   timer3->reset();
@@ -203,21 +184,11 @@ void D3::reset_timer3_trigger_output()
 
 void D3::setup_timer3_trigger_output(uint16_t interval_ms)
 {
-  if (!validate_interval(interval_ms))
+  // Validate pars
+  if ((interval_ms == 0) or (interval_ms > TIMER3_MAXIMUM_DELAY_MS))
     return;
 
   timer3->setup_trigger_output(interval_ms);
-}
-
-bool D3::validate_pwm_pars(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
-{
-  if ((freq_prescaler == 0) || (freq_prescaler > 5))
-    return false;
-  if (top == 0)
-    return false;
-  if (duty == 0)
-    return false;
-  return true;
 }
 
 void D3::reset_timer3_pwm()
@@ -227,7 +198,12 @@ void D3::reset_timer3_pwm()
 
 void D3::setup_timer3_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
 {
-  if (!validate_pwm_pars(freq_prescaler, top, duty))
+  // Validate pars
+  if ((freq_prescaler == 0) || (freq_prescaler > 5))
+    return;
+  if (top == 0)
+    return;
+  if (duty == 0)
     return;
 
   timer3->setup_pwm(freq_prescaler, top, duty);
@@ -265,18 +241,12 @@ void D5::reset_adc()
   adc_comp->reset();
 }
 
-bool D5::validate_adc_pars(uint8_t clk_prescaler, uint8_t oversampling_n_bits)
-{
-  if ((clk_prescaler == 0) || (clk_prescaler > 7))
-    return false;
-  if (oversampling_n_bits > 6)
-    return false;
-  return true;
-}
-
 void D5::send_adc_reading(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits)
 {
-  if (!validate_adc_pars(clk_prescaler, oversampling_n_bits))
+  // Validate pars
+  if ((clk_prescaler == 0) || (clk_prescaler > 7))
+    return;
+  if (oversampling_n_bits > 6)
     return;
 
   // Measure and send adc voltage

@@ -93,7 +93,6 @@ class PERIPH
     void write_lo();
     void write_hi();
 
-    bool validate_duration(uint16_t duration_us);
     void write_pulse(uint16_t duration_us);
 
     uint8_t read();
@@ -118,7 +117,6 @@ class D1 : public PERIPH
     void reset_comparator();
     void setup_comparator(uint8_t neg_to_d5);
 
-    bool validate_delay(uint8_t delay_us);
     void delay_us_test(uint8_t delay_us);
 };
 
@@ -139,11 +137,9 @@ class D3 : public PERIPH
   public:
     D3();
 
-    bool validate_interval(uint16_t interval_ms);
     void reset_timer3_trigger_output();
     void setup_timer3_trigger_output(uint16_t interval_ms);
 
-    bool validate_pwm_pars(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
     void reset_timer3_pwm();
     void setup_timer3_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
 };
@@ -163,7 +159,6 @@ class D5 : public PERIPH
     D5();
 
     void reset_adc();
-    bool validate_adc_pars(uint8_t clk_prescaler, uint8_t oversampling_n_bits);
     void send_adc_reading(uint8_t ref_5v, uint8_t clk_prescaler, uint8_t oversampling_n_bits);
 };
 

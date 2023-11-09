@@ -169,7 +169,7 @@ void EEPROM::read_rng(uint8_t* sampling_interval)
 
 void EEPROM::update_rng(uint8_t sampling_interval)
 {
-  if (rng->validate_sampling_interval(sampling_interval))
+  if (rng->validate_setup_pars(sampling_interval))
     eeprom_update_byte((uint8_t*)EA_RNG_SAMPLING_INTERVAL, sampling_interval);
 }
 

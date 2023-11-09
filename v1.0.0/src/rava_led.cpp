@@ -72,11 +72,10 @@ void LED::tick_increment()
 
 void LED::fade_intensity(uint8_t intensity_target, uint16_t duration_ms)
 {
-  // Duration > 0?
+  // Validate pars
   if (duration_ms == 0)
     return;
 
-  // Intensity delta > 0?
   int16_t int_delta = (int16_t)intensity_target - m_intensity;
   if (int_delta == 0)
     return;
@@ -94,11 +93,10 @@ void LED::fade_intensity(uint8_t intensity_target, uint16_t duration_ms)
 
 void LED::fade_color(uint16_t hue_target, uint16_t duration_ms, bool find_shortest_hue_delta)
 {
-  // Duration > 0?
+  // Validate pars
   if (duration_ms == 0)
     return;
 
-  // Color delta > 0?
   int16_t hue_delta = hue_target - m_hue;
   if (hue_delta == 0)
     return;
@@ -128,6 +126,12 @@ void LED::fade_color(uint16_t hue_target, uint16_t duration_ms, bool find_shorte
 
 void LED::fade_color_oscillate(uint8_t n_cycles, uint16_t duration_ms)
 {
+  // Validate pars
+  if (n_cycles == 0)
+    return;
+  if (duration_ms == 0)
+    return;
+
   int16_t hue_target = n_cycles*256 + m_hue;
   fade_color(hue_target, duration_ms, false);
 }
