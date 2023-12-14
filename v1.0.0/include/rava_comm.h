@@ -5,10 +5,10 @@
  */
 
 /*
-The comm module defines the communication protocol employed for controlling the
-RAVA device. It implements a leader/follower design, wherein a leader device
-initiates communication by issuing requests that prompt the RAVA device to
-respond accordingly.
+The comm module defines the serial protocol utilized to control the RAVA device 
+through the CDC driver established by Arduino's Serial class. It implements a 
+leader/follower design, wherein a leader device initiates communication by issuing 
+requests that prompt the RAVA device to respond accordingly.
 
 Since the primary task of the device is to transmit random bytes within the
 range of 0 to 255, the use of message-ending characters is impractical. Instead,
