@@ -415,8 +415,9 @@ void RNG::send_bytes(uint16_t n_bytes, uint8_t postproc_id, uint8_t comm_id, uin
 
 void RNG::gen_int8s(uint8_t& int_delta, uint8_t* gen_ints, uint8_t& gen_flag)
 {
+  // int_delta = int_max - int_min
   // Vars
-  uint8_t min_bits = (uint8_t)ceil(log(int_delta)/log(2));
+  uint8_t min_bits = (uint8_t)ceil(log(double(int_delta)+1)/log(2));
   uint8_t min_bits_mask = (uint8_t)bit_mask_1s(min_bits);
   uint8_t rnd_a, rnd_b;
   gen_flag = 0;
@@ -429,11 +430,11 @@ void RNG::gen_int8s(uint8_t& int_delta, uint8_t* gen_ints, uint8_t& gen_flag)
   rnd_b &= min_bits_mask;
 
   // Test range
-  if (rnd_a < int_delta) {
+  if (rnd_a <= int_delta) {
     gen_flag |= B01;
     gen_ints[0] = rnd_a;
   }
-  if (rnd_b < int_delta) {
+  if (rnd_b <= int_delta) {
     gen_flag |= B10;
     gen_ints[1] = rnd_b;
   }
@@ -444,7 +445,7 @@ void RNG::send_int8s(uint16_t n_ints, uint8_t int_delta)
   // Validate pars
   if (n_ints == 0)
     return;
-  if (int_delta < 2)
+  if (int_delta == 0)
     return;
 
   // Send header
@@ -486,8 +487,9 @@ void RNG::send_int8s(uint16_t n_ints, uint8_t int_delta)
 
 void RNG::gen_int16s(uint16_t& int_delta, uint16_t* gen_ints, uint8_t& gen_flag)
 {
+  // int_delta = int_max - int_min
   // Vars
-  uint8_t min_bits = (uint8_t)ceil(log(int_delta)/log(2));
+  uint8_t min_bits = (uint8_t)ceil(log(double(int_delta)+1)/log(2));
   uint16_t min_bits_mask = (uint16_t)bit_mask_1s(min_bits);
   uint8_t min_bytes = (uint8_t)ceil((float)min_bits/8);
 
@@ -516,11 +518,11 @@ void RNG::gen_int16s(uint16_t& int_delta, uint16_t* gen_ints, uint8_t& gen_flag)
   rnd_b &= min_bits_mask;
 
   // Test range
-  if (rnd_a < int_delta) {
+  if (rnd_a <= int_delta) {
     gen_flag |= B01;
     gen_ints[0] = rnd_a;
   }
-  if (rnd_b < int_delta) {
+  if (rnd_b <= int_delta) {
     gen_flag |= B10;
     gen_ints[1] = rnd_b;
   }
@@ -531,7 +533,7 @@ void RNG::send_int16s(uint16_t n_ints, uint16_t int_delta)
   // Validate pars
   if (n_ints == 0)
     return;
-  if (int_delta < 2)
+  if (int_delta == 0)
     return;
 
   // Send header
