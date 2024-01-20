@@ -15,7 +15,7 @@ In addition to the source code, the compiled firmware is also available, featuri
 
 - [RAVA Device](https://github.com/gabrielguerrer/rng_rava)
 - [RAVA Python Driver](https://github.com/gabrielguerrer/rng_rava_driver_py)
-- [RAVA Python Tools](https://github.com/gabrielguerrer/rng_rava_tools_py)
+- [RAVA Python Diagnostics](https://github.com/gabrielguerrer/rng_rava_diagnostics_py)
 
 ## Contact
 
