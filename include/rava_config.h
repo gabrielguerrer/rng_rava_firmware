@@ -34,7 +34,7 @@ EEPROM in the event of a memory reset.
 // Info accessed by USBCore.cpp sent to the OS in the USB handshake
 // VID, PID from https://pid.codes
 
-#define RAVA_USB_PRODUCT "RAVA RNG v1"
+#define RAVA_USB_PRODUCT "RAVA RNG"
 #define RAVA_USB_MANUFACTURER "Gabriel Guerrer"
 #define RAVA_USB_VID 0x1209
 #define RAVA_USB_PID 0x4884
