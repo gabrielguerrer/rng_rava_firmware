@@ -9,114 +9,192 @@
 #include <rava_led.h>
 #include <rava_eeprom.h>
 #include <rava_comm.h>
+#include <rava_timers.h>
 #include <rava_tools.h>
 
 extern RNG* rng;
 extern LED* led;
 extern EEPROM* eeprom;
 extern COMM* comm;
-extern COMM_USB* usb;
+extern TIMER1* timer1;
+extern TIMER3* timer3;
 
-#define LAMP_TRIAL_INTERVAL_MS 34 // 30 fps
-#define LAMP_TRIAL_NBYTES 1 // 8 draws per trial (240 draws/s)
-// #define LAMP_EXP_MOVING_WINDOW_MS 51000 // 51s (12K draws)
-#define LAMP_EXP_MOVING_WINDOW_MS 30000 // 30s (7056 draws)
-#define LAMP_FEDBMAG_MIN 63
+#define LAMP_TICK_INTERVAL_MS 50 // Lamp clock at 20 FPS
+#define LAMP_FEEDBMAG_MIN 16 // Feedback magnitude minimum value
 
-#define DELAY_FADE_MS 1000
-#define DELAY_CO_OSCILATE_MS 4000
-#define DELAY_RESET_MS 2000
+#define DELAY_FADE_MS 1000.
+#define DELAY_CO_OSCILATE_MS 4000.
+#define DELAY_RESET_MS 3000.
 
-#define EXP_DURATION_MIN_MS 60000
-#define EXP_Z_SIGNIFICANT_ABS_MIN 1.0
-
-uint8_t led_colors[8] = {COLOR_RED, COLOR_ORANGE, COLOR_YELLOW, COLOR_GREEN,
+uint8_t lamp_colors[LAMP_COLORS] = {COLOR_RED, COLOR_ORANGE, COLOR_YELLOW, COLOR_GREEN,
                          COLOR_CYAN, COLOR_BLUE, COLOR_PURPLE, COLOR_PINK};
 
-uint8_t get_led_color_idx(uint8_t led_color_hue)
+uint8_t gen_random_byte()
 {
-  uint8_t i;
-  for (i=0; i < 8; i++) {
-    if (led_color_hue == led_colors[i]) {
-      break;
-    }
-  }
-  return i;
+  // Generate random bytes
+  uint8_t rnd_a, rnd_b;
+
+  rng->read_initialize();
+  rng->read_byte(&rnd_a, &rnd_b);
+  rng->read_finalize();
+
+  // XOR both bytes
+  return xor_dichtl(rnd_a, rnd_b);
 }
 
-bool LAMP::validate_setup_pars(uint32_t exp_dur_max_ms, float exp_z_significant, uint8_t exp_mag_smooth_n_trials)
+uint8_t gen_random_color(uint8_t* color_idx, uint8_t* color_shift)
 {
-  if (exp_dur_max_ms < EXP_DURATION_MIN_MS)
+  uint8_t rnd = gen_random_byte();
+  *color_idx = 0b111 & rnd; // Ranging from 0 to 7
+  
+  if (*color_idx == 7) {
+    *color_shift = 32;
+  }
+  else {
+    *color_shift = lamp_colors[(*color_idx) + 1] - lamp_colors[*color_idx];
+  }
+
+  return lamp_colors[*color_idx];
+}
+
+void sound_timer1_d4(uint16_t freq_hz, uint8_t volume)
+{
+  if ((freq_hz == 0) || (volume == 0)){
+    timer1->reset();
+    return;
+  }
+
+  float pwm_top = round(2000000. / freq_hz) - 1; // top = (16MHz / 8) / freq_hz - 1
+  float volume_dutyc = round((float)volume / 255 * TIMER13_SOUND_VOLUME_DUTYC_MAX);
+  timer1->setup_pwm_pb7(TIMER013_CLK_DIV_8, (uint16_t)pwm_top, (uint8_t)volume_dutyc);
+}
+
+bool LAMP::validate_setup_pars(uint16_t exp_movwin_n_trials, uint16_t exp_deltahits_sigevt, uint16_t exp_dur_max_s,
+  uint8_t exp_mag_smooth_n_trials, uint8_t exp_mag_colorchg_thld, uint8_t sound_volume)
+{
+  if ((exp_movwin_n_trials < 10) || (exp_movwin_n_trials > 1200)) {
     return false;
-  if (abs(exp_z_significant) < EXP_Z_SIGNIFICANT_ABS_MIN)
+  }
+  if (exp_deltahits_sigevt == 0) {
     return false;
-  if (exp_mag_smooth_n_trials == 0)
+  }
+  if (exp_dur_max_s < 10) {
     return false;
+  }
+  if (exp_mag_smooth_n_trials == 0) {
+    return false;
+  }
+
   return true;
 }
 
 void LAMP::setup()
 {
-  // Read default parameters
-  trial_interval_ms = LAMP_TRIAL_INTERVAL_MS;
-  trial_rnd_n_bytes = LAMP_TRIAL_NBYTES;
-  exp_mov_window_ms = LAMP_EXP_MOVING_WINDOW_MS;
+  on = true;
 
   // Read EEPROM parameters
-  eeprom->read_lamp(&exp_dur_max_ms, &exp_z_significant, &exp_mag_smooth_n_trials);
+  eeprom->read_lamp(&exp_movwin_n_trials, &exp_deltahits_sigevt, &exp_dur_max_s, &exp_mag_smooth_n_trials, &exp_mag_colorchg_thld, &sound_volume);
+
+  // Setup LAMP clock
+  timer3->setup_interrupt(LAMP_TICK_INTERVAL_MS, 1);
 
   // Initiate ticks vars
   setup_ticks();
 
-  // Initiate exp vars
-  free(exp_feedb_mags);
-  exp_feedb_mags = (uint8_t*)malloc(exp_mag_smooth_n_trials);
+  // Initiate color-oscilating sounds
+  setup_sound();
 
-  trial_n_per_window = (uint16_t)round((float)exp_mov_window_ms / trial_interval_ms);
+  // Allocate vars
+  exp_feedb_mags = (uint8_t*)malloc(exp_mag_smooth_n_trials);
+  exp_movwin_hits = (uint8_t*)malloc(exp_movwin_n_trials);
 
   // Jump to color oscilate
-  tick_jump(ticks_co_fade_in);
+  tick_jump(ticks_ins_fade_in);
 }
 
 void LAMP::setup_ticks()
 {
-  // Color oscilate
-  ticks_co_fade_in = 1;
+  // Instructions
+  ticks_ins_fade_in = 1;
 
-  ticks_co_oscilate = ticks_co_fade_in;
-  ticks_co_oscilate += (uint16_t)round((float)DELAY_FADE_MS / LED_WDT_TICK_INTERVAL_MS);
+  ticks_ins_oscilate = ticks_ins_fade_in;
+  ticks_ins_oscilate += (uint16_t)round((float)DELAY_FADE_MS / LAMP_TICK_INTERVAL_MS);
 
-  ticks_co_fade_out = ticks_co_oscilate;
-  ticks_co_fade_out += (uint16_t)round((float)DELAY_CO_OSCILATE_MS / LED_WDT_TICK_INTERVAL_MS);
+  ticks_ins_fade_out = ticks_ins_oscilate;
+  ticks_ins_fade_out += (uint16_t)round((float)DELAY_CO_OSCILATE_MS / LAMP_TICK_INTERVAL_MS);
 
-  ticks_co_exp_reset = ticks_co_fade_out;
-  ticks_co_exp_reset += (uint16_t)round((float)DELAY_FADE_MS / LED_WDT_TICK_INTERVAL_MS);
+  ticks_ins_exp_reset = ticks_ins_fade_out;
+  ticks_ins_exp_reset += (uint16_t)round((float)DELAY_FADE_MS / LAMP_TICK_INTERVAL_MS);
 
-  ticks_co_fade_in2 = ticks_co_exp_reset;
-  ticks_co_fade_in2 += (uint16_t)round((float)DELAY_RESET_MS / LED_WDT_TICK_INTERVAL_MS);
-
-  ticks_co_end = ticks_co_fade_in2;
-  ticks_co_end += (uint16_t)round((float)DELAY_FADE_MS / LED_WDT_TICK_INTERVAL_MS);
-
-  // Color fade out
-  ticks_cfo_fade_out = ticks_co_end + 1;
-
-  ticks_cfo_exp_reset = ticks_cfo_fade_out;
-  ticks_cfo_exp_reset += (uint16_t)round((float)DELAY_FADE_MS / LED_WDT_TICK_INTERVAL_MS);
-
-  ticks_cfo_fade_in = ticks_cfo_exp_reset;
-  ticks_cfo_fade_in += (uint16_t)round((float)DELAY_RESET_MS / LED_WDT_TICK_INTERVAL_MS);
-
-  ticks_cfo_end = ticks_cfo_fade_in;
-  ticks_cfo_end += (uint16_t)round((float)DELAY_FADE_MS / LED_WDT_TICK_INTERVAL_MS);
+  ticks_ins_end = ticks_ins_exp_reset;
+  ticks_ins_end += (uint16_t)round((float)DELAY_RESET_MS / LAMP_TICK_INTERVAL_MS);
 
   // Experiment
-  ticks_exp_start = ticks_cfo_end + 1;
+  ticks_exp_start = ticks_ins_end + 1;
 
   ticks_exp_end = ticks_exp_start;
-  ticks_exp_end += (uint32_t)round((float)exp_dur_max_ms / LED_WDT_TICK_INTERVAL_MS);
+  ticks_exp_end += (uint32_t)round((float)exp_dur_max_s * 1000. / LAMP_TICK_INTERVAL_MS);
+}
 
-  ticks_trial_interval = (uint16_t)round((float)trial_interval_ms / LED_WDT_TICK_INTERVAL_MS);
+void LAMP::free_memory()
+{
+  free(exp_feedb_mags);
+  free(exp_movwin_hits);
+
+  // Avoid Undefined Behaviour if called twice
+  exp_feedb_mags = NULL;
+  exp_movwin_hits = NULL;
+}
+
+void LAMP::stop()
+{
+  on = false;
+
+  // Stop LAMP clock
+  timer3->reset();
+
+  // Reconfigure Timer1 to measure RNG pulse counts
+  timer1->setup_rng();
+
+  // Free LAMP memory
+  free_memory();
+
+  // LED fade out
+  led->fade_intensity(0, 1000);
+}
+
+void LAMP::setup_sound()
+{
+  // Sound Ticks; All last 1.9s
+  ticks_ins_notes[0] = ticks_ins_oscilate + 1;
+  ticks_ins_notes[1] = ticks_ins_notes[0] + 7;
+  ticks_ins_notes[2] = ticks_ins_notes[1] + 6;
+  ticks_ins_notes[3] = ticks_ins_notes[2] + 5;
+  ticks_ins_notes[4] = ticks_ins_notes[3] + 4;
+  ticks_ins_notes[5] = ticks_ins_notes[4] + 4;
+  ticks_ins_notes[6] = ticks_ins_notes[5] + 12;
+
+  // Sound Notes
+  freq_co_notes[0] = 220; // A
+  freq_co_notes[1] = 233; // A#
+  freq_co_notes[2] = 293; // D
+  freq_co_notes[3] = 329; // E
+  freq_co_notes[4] = 349; // F
+  freq_co_notes[5] = 440; // A
+  freq_co_notes[6] = 0;
+}
+
+void LAMP::sound_invert_notes()
+{
+  uint16_t freq_co_notes_clone[LAMP_SOUND_NOTES];
+
+  for (uint8_t i=0; i < LAMP_SOUND_NOTES; i++) {
+    freq_co_notes_clone[i] = freq_co_notes[i];
+  }
+
+  for (uint8_t i=0; i < LAMP_SOUND_NOTES - 1; i++) {
+    freq_co_notes[i] = freq_co_notes_clone[LAMP_SOUND_NOTES - 2 - i];
+  }
 }
 
 void LAMP::tick_increment()
@@ -132,65 +210,63 @@ void LAMP::tick_jump(uint16_t jump_to)
 
 void LAMP::process()
 {
-  // Got a new counter tick? Happens every LED_WDT_TICK_INTERVAL_MS -- see ISR (WDT_vect)
-  if (!tick_new)
+  if (on == false) {
     return;
+  }
+
+  // Got a new clock tick?
+  if (!tick_new) {
+    return;
+  }
 
   // Reset new tick flag
   tick_new = false;
 
-  // Color oscilate
-  if (tick_counter <= ticks_co_end) {
-    process_color_oscilate();
+  // Instructions
+  if (tick_counter <= ticks_ins_end) {
+    process_instructions();
   }
-  // Color fade out
-  else if (tick_counter <= ticks_cfo_end) {
-    process_color_fade_out();
-  }
-  // Experiment trial. Happens every LAMP_TRIAL_INTERVAL_MS
-  else {
-    if (tick_counter % ticks_trial_interval == 0) {
-      process_experiment();
-    }
+
+  // Experiment trial
+  else if (tick_counter >= ticks_exp_start) {
+    process_experiment();
   }
 }
 
-void LAMP::process_color_oscilate()
+void LAMP::process_instructions()
 {
   // Oscilate and jump to experiment start
-  if (tick_counter == ticks_co_fade_in)
+  if (tick_counter == ticks_ins_fade_in) {
     led->fade_intensity(255, DELAY_FADE_MS);
+  }
 
-  else if (tick_counter == ticks_co_oscilate)
+  else if (tick_counter == ticks_ins_oscilate) {
+    led->set_intensity(255);
     led->fade_color_oscillate(3, DELAY_CO_OSCILATE_MS);
+  }
 
-  else if (tick_counter == ticks_co_fade_out)
+  else if (tick_counter == ticks_ins_fade_out) {
     led->fade_intensity(0, DELAY_FADE_MS);
+  }
 
-  else if (tick_counter == ticks_co_exp_reset)
+  else if (tick_counter == ticks_ins_exp_reset) {
     experiment_reset_vars();
+  }
 
-  else if (tick_counter == ticks_co_fade_in2)
-    led->fade_intensity(trial_mag, DELAY_FADE_MS);
-
-  else if (tick_counter == ticks_co_end)
+  else if (tick_counter == ticks_ins_end) {
     tick_jump(ticks_exp_start);
-}
+  }
 
-void LAMP::process_color_fade_out()
-{
-  // Fade out and jump to experiment start
-  if (tick_counter == ticks_cfo_fade_out)
-    led->fade_intensity(0, DELAY_FADE_MS);
-
-  else if (tick_counter == ticks_cfo_exp_reset)
-    experiment_reset_vars();
-
-  else if (tick_counter == ticks_cfo_fade_in)
-    led->fade_intensity(trial_mag, DELAY_FADE_MS);
-
-  else if (tick_counter == ticks_cfo_end)
-    tick_jump(ticks_exp_start);
+  // Sound
+  if (sound_volume) {
+      for (uint8_t i=0; i<LAMP_SOUND_NOTES; i++) {
+        if (tick_counter == ticks_ins_notes[i]) {
+          // Plays sound disrupting Timer1 pulse count standard setup. Timer1 is reconfigured on experiment_reset_vars()
+          sound_timer1_d4(freq_co_notes[i], sound_volume);
+          break;
+        }
+      }
+  }
 }
 
 void LAMP::process_experiment()
@@ -198,107 +274,113 @@ void LAMP::process_experiment()
   // Experiment running
   if (tick_counter <= ticks_exp_end) {
 
-    // Run experiment trial
-    float z_score = experiment_trial();
+    // Run experiment trial; Retrieves random bytes and calculates trial_delta_hits, trial_z, trial_p, trial_mag
+    experiment_trial();
 
-    // Check if z-score is above significance treshold and finish the round
-    if (abs(z_score) > exp_z_significant) {
+    // LED Feedback
+    if (trial_mag > exp_mag_colorchg_thld) {
 
-      // Update statistics vars
-      exp_n += 1;
-      exp_n_zsig += 1;
-      uint8_t color_idx = get_led_color_idx(led->get_color());
-      exp_colors[color_idx] += 1;
-
-      // Jump to color oscilate
-      tick_jump(ticks_co_oscilate);
+      // Above mag treshold to start changing color?
+      float color_new = ((float)trial_mag - exp_mag_colorchg_thld)/(255 - exp_mag_colorchg_thld) * trial_color_shift + trial_color;
+      led->set_color((uint8_t)round(color_new), trial_mag);
     }
+
+    else {
+      led->set_color(trial_color, trial_mag);
+    }
+
+    // Send debug info?
+    if (exp_send_debug) {
+      send_debug();
+    }
+
+    // Check if trial_delta_hits is above significance treshold to finish the round
+    if (abs(trial_delta_hits) >= exp_deltahits_sigevt) {
+
+      // Check minimum trial time
+      if (trial_i >= exp_movwin_n_trials) {
+
+        // Update statistics vars
+        exp_n += 1;
+        exp_n_zsig += 1;
+        exp_colors[trial_color_idx] += 1;
+
+        // Oscilate LED colors        
+        tick_jump(ticks_ins_oscilate);
+      }
+    }
+
+    // Increment trial counter
+    trial_i += 1;
   }
 
   // Experiment finished within chance
   else {
-
     // Update statistics vars
     exp_n += 1;
-    uint8_t color_idx = get_led_color_idx(led->get_color());
-    exp_colors[color_idx] += 1;
+    exp_colors[trial_color_idx] += 1;
 
-    // Jump to fade out
-    tick_jump(ticks_cfo_fade_out);
+    // Fade LED out
+    tick_jump(ticks_ins_fade_out);
   }
 }
 
 void LAMP::experiment_reset_vars()
 {
-  // Reset
+  // Reconfigure Timer1 to measure RNG pulse counts
+  timer1->setup_rng();
+
+  // Sound alternates between ascending and descending scale
+  sound_invert_notes();
+
+  // Reset vars
   trial_i = 0;
-  trial_hits = trial_n_per_window * trial_rnd_n_bytes * 8 / 2;
+  trial_draws = exp_movwin_n_trials * 8;
+  trial_movwin_hits = exp_movwin_n_trials * 4;
+  array_init(exp_movwin_hits, exp_movwin_n_trials, 4);
   array_init(exp_feedb_mags, exp_mag_smooth_n_trials, 0);
   trial_mag = 0;
 
-  // Pick a random color
-  uint8_t idx_color, rnd[2];
-  rng->read_byte(&rnd[0], &rnd[1]);
-  idx_color = 0b111 & (rnd[0] ^ rnd[1]);
-
-  led->set_color(led_colors[idx_color], 0);
+  // Draw and set random color
+  trial_color = gen_random_color(&trial_color_idx, &trial_color_shift);
+  led->fade_stop(); // Necessary on some devices due to discrepancies between WDT and Timer3
+  led->set_color(trial_color, 0);
 }
 
-float LAMP::experiment_trial()
+void LAMP::experiment_trial()
 {
-  // Increment trial counter
-  trial_i += 1;
+  // Generate a random byte
+  uint8_t trial_byte = gen_random_byte();
 
-  // Get random bytes
-  for (uint8_t i=0; i < trial_rnd_n_bytes; i++) {
-    // Generate
-    rng->read_byte(&trial_rnd[0], &trial_rnd[1]);
-    // XOR both bytes
-    trial_rnd[0] = trial_rnd[0] ^ trial_rnd[1];
-    // Count the number of 1s
-    trial_hits += hamming_weight_8(trial_rnd[0]);
-    // Correct by the expected 50%
-    trial_hits -= 4;
-  }
+  // Count the number of 1s
+  uint8_t trial_hits = hamming_weight_8(trial_byte);
+
+  // Update hits counter within the moving window
+  trial_movwin_hits -= exp_movwin_hits[trial_i % exp_movwin_n_trials];
+  exp_movwin_hits[trial_i % exp_movwin_n_trials] = trial_hits;
+  trial_movwin_hits += trial_hits;
 
   // Calc z-score ; Normal approximation to the binomial distribution
-  trial_draws = trial_n_per_window * trial_rnd_n_bytes * 8;
-  float trial_draws_f = (float)trial_draws;
-  trial_z = ((float)trial_hits - trial_draws_f * 0.5) / sqrt(trial_draws_f * 0.25);
+  trial_delta_hits = trial_movwin_hits - (trial_draws / 2);
+  trial_z = (float)trial_delta_hits / sqrt((float)trial_draws * 0.25);
 
-  // Correct z-score to a max 2.0 value
-  float trial_z_correct;
-  if (exp_z_significant > 2.0)
-    trial_z_correct = trial_z * 2.0 / exp_z_significant;
-  else
-    trial_z_correct = trial_z;
+  // Calc p-value; Two-tailed stats
+  trial_p = 1. - 2 * normal_sf(abs(trial_z));
 
   // Calc feedback magnitude
-  float trial_p = 1. - 2 * normal_sf(abs(trial_z_correct)); // Two-tailed stats
   uint8_t mag = (uint8_t)round(trial_p * 255);
 
   // Average feedback magnitude over exp_mag_smooth_n_trials values
   exp_feedb_mags[trial_i % exp_mag_smooth_n_trials] = mag;
-  uint32_t mag_avg = array_sum(exp_feedb_mags, exp_mag_smooth_n_trials) / exp_mag_smooth_n_trials;
+  float mag_avg = array_sum(exp_feedb_mags, exp_mag_smooth_n_trials);
+  mag_avg = round(mag_avg / exp_mag_smooth_n_trials);
 
-  // Set min value if necessary
-  if (mag_avg < LAMP_FEDBMAG_MIN)
-    mag_avg = LAMP_FEDBMAG_MIN;
-
-  // Trial magnitude
-  trial_mag = (uint8_t)mag_avg;
-
-  // Feedback led
-  led->set_intensity(trial_mag);
-
-  // Send debug info?
-  if (exp_send_debug) {
-    if (trial_i % (500/LAMP_TRIAL_INTERVAL_MS) == 0) // Send every 1/2s
-      usb->write_msg_header(COMM_LAMP_DEBUG, trial_z, mag, trial_mag);
+  // Check minimum value
+  if (mag_avg < LAMP_FEEDBMAG_MIN) {
+    mag_avg = LAMP_FEEDBMAG_MIN;
   }
 
-  // Return z-score
-  return trial_z;
+  trial_mag = (uint8_t)mag_avg;
 }
 
 void LAMP::experiment_debug(bool send_debug_info)
@@ -311,16 +393,24 @@ bool LAMP::experiment_debugging()
   return exp_send_debug;
 }
 
+void LAMP::send_debug()
+{
+  if (trial_i % 4 == 0) { // Send every 200ms
+    comm->write_msg_header(COMM_LAMP_DEBUG, trial_z, trial_mag, (uint8_t)6);
+    comm->write((uint16_t)trial_delta_hits);
+    comm->write((uint32_t)trial_i);
+  }
+}
+
 void LAMP::send_statistics()
 {
   comm->write_msg_header(COMM_LAMP_STATISTICS, exp_n, exp_n_zsig, (uint8_t)16);
-
-  for (uint8_t i=0; i < 8; i++) {
+  for (uint8_t i=0; i < LAMP_COLORS; i++) {
     comm->write(exp_colors[i]);
   }
 
   // Clear statistics vars
   exp_n = 0;
   exp_n_zsig = 0;
-  array_init(exp_colors, 8, 0);
+  array_init(exp_colors, LAMP_COLORS, 0);
 }

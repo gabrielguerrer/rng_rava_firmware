@@ -50,7 +50,7 @@ setup() function.
 #include <rava_lamp.h>
 #include <rava_led.h>
 #include <rava_peripherals.h>
-#include <rava_pwm.h>
+#include <rava_pwm_boost.h>
 #include <rava_rng.h>
 #include <rava_timers.h>
 #include <rava_tools.h>
@@ -58,7 +58,7 @@ setup() function.
 /////////////////////////////
 // VARIABLES
 
-# define STARTUP_DELAY_STABILIZE_US 50000 // 50ms
+uint32_t STARTUP_DELAY_STABILIZE_US = 500000; // 500ms
 
 // MCU COMM
 COMM* comm;
@@ -76,7 +76,7 @@ WDT* wdt;
 ADC_COMP* adc_comp;
 
 // RAVA COMPONENTS
-PWM* pwm;
+PWM_BOOST* pwm_boost;
 RNG* rng;
 LED* led;
 LAMP* lamp;
@@ -121,7 +121,7 @@ void setup()
   adc_comp = new ADC_COMP();
 
   // RAVA COMPONENTS
-  pwm = new PWM();
+  pwm_boost = new PWM_BOOST();
   rng = new RNG();
 
   #if defined(FIRMWARE_LED_ENABLED)
@@ -168,14 +168,10 @@ void setup()
   #if defined(FIRMWARE_HEALTH_STARTUP_ENABLED)
   rng_health_startup->run_tests();
 
-  if (!rng_health_startup->get_tests_result())
+  if (!rng_health_startup->get_tests_result()) {
     // Error: Loop on task_health_startup_failed()
     return;
-  #endif
-
-  // Reset Health continuous errors
-  #if defined(FIRMWARE_HEALTH_CONTINUOUS_ENABLED)
-  rng_health_continuous->reset_errors();
+  }
   #endif
 
   // Enable LAMP mode
@@ -206,20 +202,24 @@ void task_health_startup_failed()
   // Take an action according to the command id
 
   // DEVICE_SERIAL_NUMBER
-  if (msg_command_id == COMM_DEVICE_SERIAL_NUMBER)
+  if (msg_command_id == COMM_DEVICE_SERIAL_NUMBER) {
     dev->send_serial_number();
+  }
 
   // EEPROM_FIRMWARE
-  else if (msg_command_id == COMM_EEPROM_FIRMWARE)
+  else if (msg_command_id == COMM_EEPROM_FIRMWARE) {
     eeprom->send_firmware();
+  }
 
   // HEALTH_STARTUP_RUN
-  else if (msg_command_id == COMM_HEALTH_STARTUP_RUN)
+  else if (msg_command_id == COMM_HEALTH_STARTUP_RUN) {
     rng_health_startup->run_tests();
+  }
 
   // HEALTH_STARTUP_RESULTS
-  else if (msg_command_id == COMM_HEALTH_STARTUP_RESULTS)
+  else if (msg_command_id == COMM_HEALTH_STARTUP_RESULTS) {
     rng_health_startup->send_results();
+  }
 }
 
 void task_serial_read(COMM* comm_task)
@@ -238,16 +238,14 @@ void task_serial_read(COMM* comm_task)
     #if defined(FIRMWARE_LED_ENABLED) && defined(FIRMWARE_LAMP_ENABLED)
 
     // Is LAMP sending debugging information?
-    if (!lamp->experiment_debugging()) {
+    if (lamp->experiment_debugging() == false) {
 
       // Switching from uncontacted to contacted?
-      if (!comm_task->get_contacted()) {
-
-        // Switch LAMP off: see task_lamp()
+      if (comm_task->get_contacted() == false) {
         comm_task->set_contacted(true);
 
-        // LED fade out
-        led->fade_intensity(0, 1000);
+        // Switch LAMP off
+        lamp->stop();
       }
     }
     #endif
@@ -263,11 +261,6 @@ void task_serial_read(COMM* comm_task)
     // DEVICE
     case COMM_DEVICE_SERIAL_NUMBER: {
       dev->send_serial_number();
-      break;
-      }
-
-    case COMM_DEVICE_TEMPERATURE: {
-      dev->send_temperature();
       break;
       }
 
@@ -287,20 +280,8 @@ void task_serial_read(COMM* comm_task)
       eeprom->update_default();
 
       // Force PWM and RNG to load EEPROM parameters
-      pwm->setup(true);
+      pwm_boost->setup(true);
       rng->setup(true);
-      break;
-    }
-
-    case COMM_EEPROM_DEVICE: {
-      uint8_t send = msg_bytes[1];
-      uint16_t slope = unpack_int(msg_bytes[2], msg_bytes[3]);
-      int16_t intercept = (int16_t)unpack_int(msg_bytes[4], msg_bytes[5]);
-
-      if (send)
-        eeprom->send_device();
-      else
-        eeprom->update_device(slope, intercept);
       break;
     }
 
@@ -309,17 +290,17 @@ void task_serial_read(COMM* comm_task)
       break;
     }
 
-    case COMM_EEPROM_PWM: {
+    case COMM_EEPROM_PWM_BOOST: {
       uint8_t send = msg_bytes[1];
       uint8_t pwm_freq_id = msg_bytes[2];
       uint8_t pwm_duty = msg_bytes[3];
 
       if (send) {
-        eeprom->send_pwm();
+        eeprom->send_pwm_boost();
       }
       else {
-        eeprom->update_pwm(pwm_freq_id, pwm_duty);
-        pwm->setup(false, pwm_freq_id, pwm_duty);
+        eeprom->update_pwm_boost(pwm_freq_id, pwm_duty);
+        pwm_boost->setup(false, pwm_freq_id, pwm_duty);
       }
       break;
     }
@@ -340,44 +321,52 @@ void task_serial_read(COMM* comm_task)
 
     case COMM_EEPROM_LED: {
       uint8_t send = msg_bytes[1];
-      uint8_t led_attached = msg_bytes[2];
+      uint8_t led_n = msg_bytes[2];
 
-      if (send)
+      if (send) {
         eeprom->send_led();
-      else
-        eeprom->update_led(led_attached);
+      }
+      else {
+        eeprom->update_led(led_n);
+      }
       break;
     }
 
     case COMM_EEPROM_LAMP: {
       uint8_t send = msg_bytes[1];
 
-      if (send)
+      if (send) {
         eeprom->send_lamp();
+      }
       else {
         uint8_t exp_mag_smooth_n_trials = msg_bytes[2];
-        uint8_t extra_n_bytes = msg_bytes[3];
+        uint8_t exp_mag_colorchg_thld = msg_bytes[3];
+        uint8_t sound_volume = msg_bytes[4];
+        uint8_t extra_n_bytes = msg_bytes[5];
         uint8_t extra_bytes[extra_n_bytes];
 
         comm_task->read(extra_bytes, extra_n_bytes);
-        uint32_t exp_dur_max_ms = unpack_long(extra_bytes[0], extra_bytes[1], extra_bytes[2], extra_bytes[3]);
-        float exp_z_significant = unpack_float(extra_bytes[4], extra_bytes[5], extra_bytes[6], extra_bytes[7]);
+        uint16_t exp_movwin_n_trials = unpack_int(extra_bytes[0], extra_bytes[1]);
+        uint16_t exp_deltahits_sigevt = unpack_int(extra_bytes[2], extra_bytes[3]);
+        uint16_t exp_dur_max_s = unpack_int(extra_bytes[4], extra_bytes[5]);
 
-        eeprom->update_lamp(exp_dur_max_ms, exp_z_significant, exp_mag_smooth_n_trials);
+        eeprom->update_lamp(exp_movwin_n_trials, exp_deltahits_sigevt, exp_dur_max_s, exp_mag_smooth_n_trials, exp_mag_colorchg_thld, sound_volume);
       }
       break;
     }
 
-    // PWM
-    case COMM_PWM_SETUP: {
+    // PWM_BOOST
+    case COMM_PWM_BOOST_SETUP: {
       uint8_t send = msg_bytes[1];
       uint8_t freq_id = msg_bytes[2];
       uint8_t duty = msg_bytes[3];
 
-      if (send)
-        pwm->send_setup();
-      else
-        pwm->setup(false, freq_id, duty);
+      if (send) {
+        pwm_boost->send_setup();
+      }
+      else {
+        pwm_boost->setup(false, freq_id, duty);
+      }
       break;
     }
 
@@ -386,14 +375,16 @@ void task_serial_read(COMM* comm_task)
       uint8_t send = msg_bytes[1];
       uint8_t sampling_interval = msg_bytes[2];
 
-      if (send)
+      if (send) {
         rng->send_setup();
-      else
+      }
+      else {
         rng->setup(false, sampling_interval);
+      }
       break;
     }
 
-    case COMM_RNG_PULSE_COUNTS: {      
+    case COMM_RNG_PULSE_COUNTS: {
       uint16_t n_counts = unpack_int(msg_bytes[1], msg_bytes[2]);
 
       rng->send_pulse_counts(n_counts);
@@ -447,7 +438,7 @@ void task_serial_read(COMM* comm_task)
     }
 
     case COMM_RNG_STREAM_START: {
-      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);      
+      uint16_t n_bytes = unpack_int(msg_bytes[1], msg_bytes[2]);
       uint16_t stream_interval_ms = unpack_int(msg_bytes[3], msg_bytes[4]);
       uint8_t postproc_id = msg_bytes[5];
 
@@ -547,10 +538,12 @@ void task_serial_read(COMM* comm_task)
       uint8_t lamp_on = msg_bytes[1];
       if (lamp_on) {
         comm_task->set_contacted(false);
+        lamp->free_memory();
         lamp->setup();
       }
       else {
         comm_task->set_contacted(true);
+        lamp->stop();
       }
       break;
     }
@@ -574,20 +567,24 @@ void task_serial_read(COMM* comm_task)
     case COMM_PERIPH_MODE: {
       uint8_t periph_id = msg_bytes[1];
       uint8_t mode = msg_bytes[2];
-      if ((periph_id == 0) || (periph_id > 5))
+      if ((periph_id == 0) || (periph_id > 5)) {
         break;
+      }
 
-      if (mode == PERIPH_INPUT)
+      if (mode == PERIPH_INPUT) {
         (ds[periph_id-1])->mode_input();
-      else if (mode == PERIPH_OUTPUT)
+      }
+      else if (mode == PERIPH_OUTPUT) {
         (ds[periph_id-1])->mode_output();
+      }
       break;
     }
 
     case COMM_PERIPH_READ: {
       uint8_t periph_id = msg_bytes[1];
-      if ((periph_id == 0) || (periph_id > 5))
+      if ((periph_id == 0) || (periph_id > 5)) {
         break;
+      }
 
       ds[periph_id-1]->send_digi_state();
       break;
@@ -596,21 +593,25 @@ void task_serial_read(COMM* comm_task)
     case COMM_PERIPH_WRITE: {
       uint8_t periph_id = msg_bytes[1];
       uint8_t digi_state = msg_bytes[2];
-      if ((periph_id == 0) || (periph_id > 5))
+      if ((periph_id == 0) || (periph_id > 5)) {
         break;
+      }
 
-      if (digi_state)
+      if (digi_state) {
         ds[periph_id-1]->write_hi();
-      else
+      }
+      else {
         ds[periph_id-1]->write_lo();
+      }
       break;
     }
 
     case COMM_PERIPH_PULSE: {
       uint8_t periph_id = msg_bytes[1];
       uint16_t pulse_duration_us = unpack_int(msg_bytes[2], msg_bytes[3]);
-      if ((periph_id == 0) || (periph_id > 5))
+      if ((periph_id == 0) || (periph_id > 5)) {
         break;
+      }
 
       ds[periph_id-1]->write_pulse(pulse_duration_us);
       break;
@@ -619,10 +620,12 @@ void task_serial_read(COMM* comm_task)
     case COMM_PERIPH_D1_TRIGGER_INPUT: {
       uint8_t on = msg_bytes[1];
 
-      if (on)
+      if (on) {
         d1->setup_trigger_input();
-      else
+      }
+      else {
         d1->reset_trigger_input();
+      }
       break;
     }
 
@@ -630,10 +633,12 @@ void task_serial_read(COMM* comm_task)
       uint8_t on = msg_bytes[1];
       uint8_t neg_to_d5 = msg_bytes[2];
 
-      if (on)
+      if (on) {
         d1->setup_comparator(neg_to_d5);
-      else
+      }
+      else {
         d1->reset_comparator();
+      }
       break;
     }
 
@@ -648,10 +653,12 @@ void task_serial_read(COMM* comm_task)
     case COMM_PERIPH_D2_TIMER3_INPUT_CAPTURE: {
       uint8_t on = msg_bytes[1];
 
-      if (on)
+      if (on) {
         d2->setup_timer3_input_capture();
-      else
-        d2->reset_timer3_input_capture();
+      }
+      else {
+        timer3->reset();
+      }
       break;
     }
 
@@ -659,10 +666,12 @@ void task_serial_read(COMM* comm_task)
       uint8_t on = msg_bytes[1];
       uint16_t interval_ms = unpack_int(msg_bytes[2], msg_bytes[3]);
 
-      if (on)
+      if (on) {
         d3->setup_timer3_trigger_output(interval_ms);
-      else
-        d3->reset_timer3_trigger_output();
+      }
+      else {
+        timer3->reset();
+      }
       break;
     }
 
@@ -672,20 +681,38 @@ void task_serial_read(COMM* comm_task)
       uint16_t top = unpack_int(msg_bytes[3], msg_bytes[4]);
       uint16_t duty = unpack_int(msg_bytes[5], msg_bytes[6]);
 
-      if (on)
+      if (on) {
         d3->setup_timer3_pwm(freq_prescaler, top, duty);
-      else
-        d3->reset_timer3_pwm();
+      }
+      else {
+        timer3->reset();
+      }
+      break;
+    }
+
+    case COMM_PERIPH_D3_TIMER3_SOUND: {
+      uint8_t on = msg_bytes[1];
+      uint16_t freq_hz = unpack_int(msg_bytes[2], msg_bytes[3]);
+      uint8_t volume = msg_bytes[4];
+
+      if (on) {
+        d3->setup_timer3_sound(freq_hz, volume);
+      }
+      else {
+        timer3->reset();
+      }
       break;
     }
 
     case COMM_PERIPH_D4_PIN_CHANGE: {
       uint8_t on = msg_bytes[1];
 
-      if (on)
+      if (on) {
         d4->setup_pin_change();
-      else
+      }
+      else {
         d4->reset_pin_change();
+      }
       break;
     }
 
@@ -695,10 +722,12 @@ void task_serial_read(COMM* comm_task)
       uint8_t clk_prescaler = msg_bytes[3];
       uint8_t oversampling_n_bits = msg_bytes[4];
 
-      if (on)
+      if (on) {
         d5->send_adc_reading(ref_5v, clk_prescaler, oversampling_n_bits);
-      else
+      }
+      else {
         d5->reset_adc();
+      }
       break;
     }
     #endif
@@ -718,7 +747,7 @@ void task_serial_read(COMM* comm_task)
 // Streaming mode: Send data when triggered
 void task_rng_stream()
 {
-  if ((rng->stream_cfg.streaming) && (rng->stream_cfg.triggered)){
+  if ((rng->stream_cfg.streaming) && (rng->stream_cfg.triggered)) {
     rng->send_bytes_stream();
   }
 }
@@ -732,16 +761,7 @@ void task_led_fade()
 // Processes lamp mode, when no serial connection was made to the device
 void task_lamp()
 {
-  bool comm_contacted = usb->get_contacted();
-
-  #if defined(FIRMWARE_COMM_SERIAL1_ENABLED)
-  comm_contacted |= serial->get_contacted();
-  #endif
-
-  // Stay in LAMP mode while the device is uncontacted
-  if (!comm_contacted) {
-    lamp->process();
-  }
+  lamp->process();
 }
 
 /////////////////////////////

@@ -10,7 +10,7 @@
 #include <rava_config.h>
 #include <rava_comm.h>
 #include <rava_device.h>
-#include <rava_pwm.h>
+#include <rava_pwm_boost.h>
 #include <rava_rng.h>
 #include <rava_lamp.h>
 #include <rava_tools.h>
@@ -21,7 +21,7 @@
 
 extern COMM* comm;
 extern DEVICE* dev;
-extern PWM* pwm;
+extern PWM_BOOST* pwm_boost;
 extern RNG* rng;
 extern LAMP* lamp;
 
@@ -45,11 +45,11 @@ void EEPROM::update_default()
 
   // Write default information if empty
   if (all_empty) {
-    update_device(DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_SLOPE, DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_INTERCEPT);
-    update_pwm(DEFAULT_PWM_FREQ_ID, DEFAULT_PWM_DUTY);
+    update_pwm_boost(DEFAULT_PWM_BOOST_FREQ_ID, DEFAULT_PWM_BOOST_DUTY);
     update_rng(DEFAULT_RNG_SAMPLING_INTERVAL_US);
-    update_led(0);
-    update_lamp(DEFAULT_LAMP_EXP_DURATION_MAX_MS, DEFAULT_LAMP_EXP_Z_SIGNIFICANT, DEFAULT_LAMP_FEDBMAG_SMOOTH_NTRIALS);
+    update_led(DEFAULT_LED_N);
+    update_lamp(DEFAULT_LAMP_EXP_MOVWIN_N_TRIALS, DEFAULT_LAMP_EXP_DELTAHITS_SIGEVT, DEFAULT_LAMP_EXP_DURATION_MAX_S,
+      DEFAULT_LAMP_FEDBMAG_SMOOTH_NTRIALS, DEFAULT_LAMP_FEDBMAG_COLORCHANGE_TRESHOLD, DEFAULT_LAMP_SOUND_VOLUME);
   }
 
   // Always update firmware
@@ -63,33 +63,6 @@ void EEPROM::erase()
   for (uint16_t i=0; i < EEPROM_SIZE/2; i++) {
     eeprom_update_word((uint16_t*)(2*i), empty_value);
   }
-}
-
-void EEPROM::read_device(uint16_t* temp_calib_slope, int16_t* temp_calib_intercept)
-{
-  *temp_calib_slope = eeprom_read_word((uint16_t*)EA_DEVICE_TEMPERATURE_CALIBRATION_SLOPE);
-  *temp_calib_intercept = eeprom_read_word((uint16_t*)EA_DEVICE_TEMPERATURE_CALIBRATION_INTERCEPT);
-}
-
-void EEPROM::update_device(uint16_t temp_calib_slope, int16_t temp_calib_intercept)
-{
-  // First 4 bytes = 'RAVA'
-  eeprom_update_block("RAVA", (uint8_t*)(EA_DEVICE_RAVA), 4);
-
-  // Temperature calibration parameters
-  eeprom_update_word((uint16_t*)EA_DEVICE_TEMPERATURE_CALIBRATION_SLOPE, temp_calib_slope);
-  eeprom_update_word((uint16_t*)EA_DEVICE_TEMPERATURE_CALIBRATION_INTERCEPT, temp_calib_intercept);
-}
-
-void EEPROM::send_device()
-{
-  // Temperature calibration parameters
-  uint16_t temp_calib_slope;
-  int16_t temp_calib_intercept;
-  read_device(&temp_calib_slope, &temp_calib_intercept);
-
-  // Send
-  comm->write_msg_header(COMM_EEPROM_DEVICE, temp_calib_slope, (uint16_t)temp_calib_intercept);
 }
 
 void EEPROM::read_firmware(uint8_t* version_major, uint8_t* version_minor, uint8_t* version_patch, uint8_t* parameters)
@@ -140,26 +113,26 @@ void EEPROM::send_firmware()
   comm->write_msg_header(COMM_EEPROM_FIRMWARE, version_major, version_minor, version_patch, parameters);
 }
 
-void EEPROM::read_pwm(uint8_t* pwm_freq_id, uint8_t* pwm_duty)
+void EEPROM::read_pwm_boost(uint8_t* pwm_freq_id, uint8_t* pwm_duty)
 {
-  *pwm_freq_id = eeprom_read_byte((uint8_t*)EA_PWM_FREQ_ID);
-  *pwm_duty = eeprom_read_byte((uint8_t*)EA_PWM_DUTY);
+  *pwm_freq_id = eeprom_read_byte((uint8_t*)EA_PWM_BOOST_FREQ_ID);
+  *pwm_duty = eeprom_read_byte((uint8_t*)EA_PWM_BOOST_DUTY);
 }
 
-void EEPROM::update_pwm(uint8_t pwm_freq_id, uint8_t pwm_duty)
+void EEPROM::update_pwm_boost(uint8_t pwm_freq_id, uint8_t pwm_duty)
 {
-  if (pwm->validate_setup_pars(pwm_freq_id, pwm_duty)) {
-    eeprom_update_byte((uint8_t*)EA_PWM_FREQ_ID, pwm_freq_id);
-    eeprom_update_byte((uint8_t*)EA_PWM_DUTY, pwm_duty);
+  if (pwm_boost->validate_setup_pars(pwm_freq_id, pwm_duty)) {
+    eeprom_update_byte((uint8_t*)EA_PWM_BOOST_FREQ_ID, pwm_freq_id);
+    eeprom_update_byte((uint8_t*)EA_PWM_BOOST_DUTY, pwm_duty);
   }
 }
 
-void EEPROM::send_pwm()
+void EEPROM::send_pwm_boost()
 {
   uint8_t pwm_freq_id, pwm_duty;
-  read_pwm(&pwm_freq_id, &pwm_duty);
+  read_pwm_boost(&pwm_freq_id, &pwm_duty);
 
-  comm->write_msg_header(COMM_EEPROM_PWM, pwm_freq_id, pwm_duty);
+  comm->write_msg_header(COMM_EEPROM_PWM_BOOST, pwm_freq_id, pwm_duty);
 }
 
 void EEPROM::read_rng(uint8_t* sampling_interval)
@@ -169,8 +142,9 @@ void EEPROM::read_rng(uint8_t* sampling_interval)
 
 void EEPROM::update_rng(uint8_t sampling_interval)
 {
-  if (rng->validate_setup_pars(sampling_interval))
+  if (rng->validate_setup_pars(sampling_interval)) {
     eeprom_update_byte((uint8_t*)EA_RNG_SAMPLING_INTERVAL, sampling_interval);
+  }
 }
 
 void EEPROM::send_rng()
@@ -181,48 +155,58 @@ void EEPROM::send_rng()
   comm->write_msg_header(COMM_EEPROM_RNG, sampling_interval_us);
 }
 
-void EEPROM::read_led(uint8_t* led_attached)
+void EEPROM::read_led(uint8_t* led_n)
 {
-  *led_attached = eeprom_read_byte((uint8_t*)EA_LED_ATTACHED);
+  *led_n = eeprom_read_byte((uint8_t*)EA_LED_N);
 }
 
-void EEPROM::update_led(uint8_t led_attached)
+void EEPROM::update_led(uint8_t led_n)
 {
-  eeprom_update_byte((uint8_t*)EA_LED_ATTACHED, led_attached != 0);
+  eeprom_update_byte((uint8_t*)EA_LED_N, led_n);
 }
 
 void EEPROM::send_led()
 {
-  uint8_t led_attached;
-  read_led(&led_attached);
+  uint8_t led_n;
+  read_led(&led_n);
 
-  comm->write_msg_header(COMM_EEPROM_LED, led_attached);
+  comm->write_msg_header(COMM_EEPROM_LED, led_n);
 }
 
-void EEPROM::read_lamp(uint32_t* exp_dur_max_ms, float* exp_z_significant, uint8_t* exp_mag_smooth_n_trials)
+void EEPROM::read_lamp(uint16_t* exp_movwin_n_trials, uint16_t* exp_deltahits_sigevt, uint16_t* exp_dur_max_s,
+  uint8_t* exp_mag_smooth_n_trials, uint8_t* exp_mag_colorchg_thld, uint8_t* sound_volume)
 {
-  *exp_dur_max_ms = eeprom_read_dword((uint32_t*)EA_LAMP_EXP_DURATION_MAX_MS);
-  *exp_z_significant = eeprom_read_float((float*)EA_LAMP_EXP_Z_SIGNIFICANT);
+  *exp_movwin_n_trials = eeprom_read_word((uint16_t*)EA_LAMP_EXP_MOVWIN_NTRIALS);
+  *exp_deltahits_sigevt = eeprom_read_word((uint16_t*)EA_LAMP_EXP_DELTAHITS_SIGEVT);
+  *exp_dur_max_s = eeprom_read_word((uint16_t*)EA_LAMP_EXP_DURATION_MAX_S);
   *exp_mag_smooth_n_trials = eeprom_read_byte((uint8_t*)EA_LAMP_FEDBMAG_SMOOTH_NTRIALS);
+  *exp_mag_colorchg_thld = eeprom_read_byte((uint8_t*)EA_LAMP_FEDBMAG_COLORCHANGE_TRESHOLD);
+  *sound_volume = eeprom_read_byte((uint8_t*)EA_LAMP_SOUND_VOLUME);
 }
 
-void EEPROM::update_lamp(uint32_t exp_dur_max_ms, float exp_z_significant, uint8_t exp_mag_smooth_n_trials)
+void EEPROM::update_lamp(uint16_t exp_movwin_n_trials, uint16_t exp_deltahits_sigevt, uint16_t exp_dur_max_s,
+  uint8_t exp_mag_smooth_n_trials, uint8_t exp_mag_colorchg_thld, uint8_t sound_volume)
 {
-  if (lamp->validate_setup_pars(exp_dur_max_ms, exp_z_significant, exp_mag_smooth_n_trials)) {
-    eeprom_update_dword((uint32_t*)EA_LAMP_EXP_DURATION_MAX_MS, exp_dur_max_ms);
-    eeprom_update_float((float*)EA_LAMP_EXP_Z_SIGNIFICANT, exp_z_significant);
+  if (lamp->validate_setup_pars(exp_movwin_n_trials, exp_deltahits_sigevt, exp_dur_max_s,
+    exp_mag_smooth_n_trials, exp_mag_colorchg_thld, sound_volume)) {
+
+    eeprom_update_word((uint16_t*)EA_LAMP_EXP_MOVWIN_NTRIALS, exp_movwin_n_trials);
+    eeprom_update_word((uint16_t*)EA_LAMP_EXP_DELTAHITS_SIGEVT, exp_deltahits_sigevt);
+    eeprom_update_word((uint16_t*)EA_LAMP_EXP_DURATION_MAX_S, exp_dur_max_s);
     eeprom_update_byte((uint8_t*)EA_LAMP_FEDBMAG_SMOOTH_NTRIALS, exp_mag_smooth_n_trials);
+    eeprom_update_byte((uint8_t*)EA_LAMP_FEDBMAG_COLORCHANGE_TRESHOLD, exp_mag_colorchg_thld);
+    eeprom_update_byte((uint8_t*)EA_LAMP_SOUND_VOLUME, sound_volume);
   }
 }
 
 void EEPROM::send_lamp()
 {
-  uint32_t exp_dur_max_ms;
-  float exp_z_significant;
-  uint8_t exp_mag_smooth_n_trials;
-  read_lamp(&exp_dur_max_ms, &exp_z_significant, &exp_mag_smooth_n_trials);
+  uint16_t exp_movwin_n_trials, exp_deltahits_sigevt, exp_dur_max_s;
+  uint8_t exp_mag_smooth_n_trials, exp_mag_colorchg_thld, sound_volume;
+  read_lamp(&exp_movwin_n_trials, &exp_deltahits_sigevt, &exp_dur_max_s, &exp_mag_smooth_n_trials, &exp_mag_colorchg_thld, &sound_volume);
 
-  comm->write_msg_header(COMM_EEPROM_LAMP, exp_mag_smooth_n_trials, (uint8_t)8);
-  comm->write(exp_dur_max_ms);
-  comm->write(exp_z_significant);
+  comm->write_msg_header(COMM_EEPROM_LAMP, exp_mag_smooth_n_trials, exp_mag_colorchg_thld, sound_volume, (uint8_t)6);
+  comm->write(exp_movwin_n_trials);
+  comm->write(exp_deltahits_sigevt);
+  comm->write(exp_dur_max_s);
 }

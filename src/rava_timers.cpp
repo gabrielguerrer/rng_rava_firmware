@@ -88,6 +88,122 @@ uint8_t TIMER1::read_counter()
   return TCNT1L;
 }
 
+uint16_t TIMER1::setup_clock(uint16_t interval_ms)
+{
+  // Assumes a 16MHz external clock
+  float ticks_per_ms;
+
+  // Find the correct prescaler and the associated number of ticks per ms
+  if (interval_ms <= 32) {  // 2**16/(16MHz/8)
+    TCCR1B = TIMER013_CLK_DIV_8; // clk/8
+    ticks_per_ms = 2000.;  // (16MHz/8)/1000
+  }
+  else if (interval_ms <= 262) {  // 2**16/(16MHz/64)
+    TCCR1B = TIMER013_CLK_DIV_64; // clk/64
+    ticks_per_ms = 250.;  // (16MHz/64)/1000
+  }
+  else if (interval_ms <= 1048) {  // 2**16/(16MHz/256)
+    TCCR1B = TIMER013_CLK_DIV_256; // clk/256
+    ticks_per_ms = 62.5;  // (16MHz/256)/1000
+  }
+  else if (interval_ms <= 4194) {  // 2**16/(16MHz/1024)
+    TCCR1B = TIMER013_CLK_DIV_1024; // clk/1024
+    ticks_per_ms = 15.625;  // (16MHz/1024)/1000
+  }
+  else {
+    return 0;
+  }
+
+  // Return delay ticks, the quantity of clock ticks for interval_ms
+  uint16_t delay_ticks = round(float(interval_ms) * ticks_per_ms);
+  delay_ticks -= 1;
+  return delay_ticks;
+}
+
+void TIMER1::setup_interrupt(uint16_t interval_ms, uint8_t interrupt_ch)
+{
+  if (interrupt_ch > 2) {
+    return;
+  }
+
+  // Reset
+  reset();
+
+  // Setup clock
+  OCR1A = setup_clock(interval_ms);
+
+  // CTC mode, TOP at OCR1A
+  TCCR1B |= _BV(WGM12);
+
+  // Output Compare Match Interrupt Enable
+  if (interrupt_ch == 0) {
+    TIMSK1 |= _BV(OCIE1A);  // ISR(TIMER1_COMPA_vect)
+  }
+  else if (interrupt_ch == 1) {
+    TIMSK1 |= _BV(OCIE1B);  // ISR(TIMER1_COMPB_vect)
+  }
+  else if (interrupt_ch == 2) {
+    TIMSK1 |= _BV(OCIE1C);  // ISR(TIMER1_COMPC_vect)
+  }
+
+  // Restart counter
+  TCNT1 = 0;
+}
+
+void TIMER1::setup_pwm_pb5(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
+{
+  // Reset
+  reset();
+
+  // Frequency prescaler
+  TCCR1B = freq_prescaler % 6;
+
+  // Fast PWM, TOP at ICR1
+  TCCR1A |= _BV(WGM11);
+  TCCR1B |= _BV(WGM13) | _BV(WGM12);
+
+  // Clear OC1A on compare match
+  TCCR1A |= _BV(COM1A1);
+
+  // PWM output to port B5: Output mode
+  PORTB &= ~_BV(5);
+  DDRB |= _BV(5);
+
+  // Setup top and duty
+  ICR1 = top;
+  OCR1A = duty;
+
+  // Restart counter
+  TCNT1 = 0;
+}
+
+void TIMER1::setup_pwm_pb7(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
+{
+  // Reset
+  reset();
+
+  // Frequency prescaler
+  TCCR1B = freq_prescaler % 6;
+
+  // Fast PWM, TOP at ICR1
+  TCCR1A |= _BV(WGM11);
+  TCCR1B |= _BV(WGM13) | _BV(WGM12);
+
+  // Clear OC1C on compare match
+  TCCR1A |= _BV(COM1C1);
+
+  // PWM output to port B7: Output mode
+  PORTB &= ~_BV(7);
+  DDRB |= _BV(7);
+
+  // Setup top and duty
+  ICR1 = top;
+  OCR1C = duty;
+
+  // Restart counter
+  TCNT1 = 0;
+}
+
 void TIMER3::reset()
 {
   // Normal mode, TOP at 0xffff
@@ -96,10 +212,48 @@ void TIMER3::reset()
   // No clock source
   TCCR3B = 0;
   TCCR3C = 0;
+
+  // Interrupts disabled
   TIMSK3 = 0;
 
   // PC6 as input
   DDRC &= ~_BV(6);
+}
+
+void TIMER3::start_chronometer()
+{
+  // Reset
+  reset();
+
+  // Setup prescaler
+  TCCR3B = TIMER013_CLK_DIV_256;
+
+  // Fast PWM, TOP at ICR3
+  TCCR3A |= _BV(WGM31);
+  TCCR3B |= _BV(WGM33) | _BV(WGM32);
+
+  // Setup prescaler
+  ICR3 = 62499; // overflow every 1s ; 62500 / (16MHz/256)
+
+  // Clear any pending overflow flag
+  TIFR3 |= _BV(TOV3);
+
+  // Overflow Interrupt Enable
+  TIMSK3 |= _BV(TOIE3);  // Running ISR(TIMER3_OVF_vect) defined on rava_interrupts.h
+
+  // Restart counter
+  overflow_n = 0;
+  TCNT3 = 0;
+}
+
+float TIMER3::stop_chronometer()
+{
+  uint16_t timer3_count = TCNT3;
+  float interval_ms = (float)timer3_count * 0.016 + (float)overflow_n*1000.;
+
+  reset();
+
+  return interval_ms;
 }
 
 uint16_t TIMER3::setup_clock(uint16_t interval_ms)
@@ -134,8 +288,12 @@ uint16_t TIMER3::setup_clock(uint16_t interval_ms)
   return delay_ticks;
 }
 
-void TIMER3::setup_rng_interrupt(uint16_t interval_ms)
+void TIMER3::setup_interrupt(uint16_t interval_ms, uint8_t interrupt_ch)
 {
+  if (interrupt_ch > 2) {
+    return;
+  }
+
   // Reset
   reset();
 
@@ -145,14 +303,49 @@ void TIMER3::setup_rng_interrupt(uint16_t interval_ms)
   // CTC mode, TOP at OCR3A
   TCCR3B |= _BV(WGM32);
 
-  // Output Compare A Match Interrupt Enable
-  TIMSK3 |= _BV(OCIE3A);  // Activates ISR(TIMER3_COMPA_vect)
+  // Output Compare Match Interrupt Enable
+  if (interrupt_ch == 0) {
+    TIMSK3 |= _BV(OCIE3A);  // ISR(TIMER3_COMPA_vect)
+  }
+  else if (interrupt_ch == 1) {
+    TIMSK3 |= _BV(OCIE3B);  // ISR(TIMER3_COMPB_vect)
+  }
+  else if (interrupt_ch == 2) {
+    TIMSK3 |= _BV(OCIE3C);  // ISR(TIMER3_COMPC_vect)
+  }
 
   // Restart counter
   TCNT3 = 0;
 }
 
-void TIMER3::setup_trigger_output(uint16_t interval_ms)
+void TIMER3::setup_pwm_pc6(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
+{
+  // Reset
+  reset();
+
+  // Frequency prescaler
+  TCCR3B = freq_prescaler % 6;
+
+  // Fast PWM, TOP at ICR3
+  TCCR3A |= _BV(WGM31);
+  TCCR3B |= _BV(WGM33) | _BV(WGM32);
+
+  // Clear OC3A on compare match ; PWM output to port C6
+  TCCR3A |= _BV(COM3A1);
+
+  // Port C6: Output mode
+  PORTC &= ~_BV(6);
+  DDRC |= _BV(6);
+
+  // Setup top and duty
+  ICR3 = top;
+  OCR3A = duty;
+
+  // Restart counter
+  TCNT3 = 0;
+}
+
+void TIMER3::setup_trigger_output_pc6(uint16_t interval_ms)
 {
   // Find 100us duty. Assumes a 16MHz external clock
   uint16_t duty_100us = 0;
@@ -193,34 +386,7 @@ void TIMER3::setup_trigger_output(uint16_t interval_ms)
   TCNT3 = 0;
 }
 
-void TIMER3::setup_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty)
-{
-  // Reset
-  reset();
-
-  // Frequency prescaler
-  TCCR3B = freq_prescaler % 6;
-
-  // Fast PWM, TOP at ICR3
-  TCCR3A |= _BV(WGM31);
-  TCCR3B |= _BV(WGM33) | _BV(WGM32);
-
-  // Clear OC3A on compare match ; PWM output to port C6
-  TCCR3A |= _BV(COM3A1);
-
-  // Port C6: Output mode
-  PORTC &= ~_BV(6);
-  DDRC |= _BV(6);
-
-  // Setup top and duty
-  ICR3 = top;
-  OCR3A = duty;
-
-  // Restart counter
-  TCNT3 = 0;
-}
-
-void TIMER3::setup_input_capture()
+void TIMER3::setup_input_capture_pc7()
 {
   // Reset
   reset();
@@ -267,9 +433,15 @@ void TIMER4::reset()
 
   // B6 as input
   DDRB &= ~_BV(6);
+
+  // C6 as input
+  DDRC &= ~_BV(6);
+
+  // Configure the PLL Postcaler Factor
+  setup_pll_48mhz();
 }
 
-void TIMER4::setup_pll()
+void TIMER4::setup_pll_48mhz()
 {
   // 16MHz clock
   #if F_CPU == 16000000UL
@@ -280,8 +452,8 @@ void TIMER4::setup_pll()
 
     PLLFRQ = 0;
     PLLFRQ |= _BV(PDIV3) | _BV(PDIV1);  // CLK_PLL 96MHz
-    PLLFRQ |= _BV(PLLTM1) | _BV(PLLTM0); // PLLTM / 2
-    PLLFRQ |= _BV(PLLUSB); // PLLUSB / 2
+    PLLFRQ |= _BV(PLLTM1) | _BV(PLLTM0); // PLLTM = CLK_PLL / 2
+    PLLFRQ |= _BV(PLLUSB); // PLLUSB = CLK_PLL / 2
 
     PLLCSR |= _BV(PLLE); // Enable PLL
 
@@ -300,24 +472,21 @@ void TIMER4::setup_pll()
   #endif
 }
 
-void TIMER4::setup_pwm(uint8_t freq_prescaler, uint8_t top, uint8_t duty)
+void TIMER4::setup_pwm_pb6(uint8_t freq_prescaler, uint8_t top, uint8_t duty)
 {
   // Reset Timer4
   reset();
 
-  // Configure the PLL Postcaler Factor
-  setup_pll();
-
   // Prescaling factor
   TCCR4B = freq_prescaler % 16;
 
-  // PWM mode based on OCR4B, TOP at OCR4C
+  // Fast PWM mode based on OCR4B, TOP at OCR4C
   TCCR4A |= _BV(PWM4B);
 
-  // Clear OC4B on Compare Match ; PWM output to port B6
+  // Clear OC4B on Compare Match
   TCCR4A |= _BV(COM4B1);
 
-  // Port B6: Output mode
+  // PWM output to port B6; Output mode
   PORTB &= ~_BV(6);
   DDRB |= _BV(6);
 

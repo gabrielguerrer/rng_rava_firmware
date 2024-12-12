@@ -6,7 +6,7 @@
 
 /*
 The DEVICE class enables the retrieval and transmission of information including
-the device's serial number, temperature, and the available RAM memory.
+the device's serial number and the available RAM memory.
 */
 
 #ifndef RAVA_DEVICE_H
@@ -18,9 +18,6 @@ class DEVICE {
   public:
     void get_serial_number(uint8_t* const sn);
     void send_serial_number();
-
-    float get_temperature();
-    void send_temperature();
 
     int16_t get_free_ram();
     void send_free_ram();

@@ -30,7 +30,7 @@ class ADC_COMP
   public:
     void reset();
 
-    void setup_adc_ch12(uint8_t ref_5v, uint8_t clk_prescaler);    
+    void setup_adc_ch12(uint8_t ref_5v, uint8_t clk_prescaler);
     void setup_adc_chtemp();
     void setup_comparator(uint8_t neg_to_adc12);
 

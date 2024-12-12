@@ -7,11 +7,12 @@
 /*
 The ATmega32u4 microcontroller features four counter/timers (0, 1, 3, and 4) and
 a watchdog timer. The entropy generation within the RAVA circuit relies on
-timers 0 and 1 for pulse counting and on timer 4 for the PWM signal. Timer 3 can
-be optionally employed to generate random bytes at predefined intervals or
-allocating its functionality to another application related to rava_peripherals.
-The watchdog timer functions as a 60Hz clock, supporting the operations of the
-LED and LAMP modules.
+timers 0 and 1 for pulse counting and on timer 4 for the PWM boost signal.
+Timer 3 can be optionally employed to generate random bytes at predefined
+intervals or allocating its functionality to another application related to
+rava_peripherals. Timer3 is used also as the clock for the LAMP module. The 
+watchdog timer functions as a 60Hz clock, supporting the operations of the LED 
+module.
 
 Next, a more detailed description of each timer class.
 
@@ -38,23 +39,28 @@ TIMER1 is dedicated to count digital pulses originating from the PD6 port
 connected to CMP1. This operation constitutes the foundation for generating
 entropy within the randomness channel designated as "A".
 
-// TIMER3
-TIMER3 may be employed by the RNG module to trigger the production and
-transmission of random bytes in a regular interval, or it can be exposed as a
-peripheral for custom applications as PWM, trigger output, and interrupt at a
-given interval -- see rava_peripherals for more details.
+Interrupt and PWM functionalities are available for alternate use alongside
+randomness generation.
 
-The maximum interval that can be achieved is 4194 ms, given by 2**16/(16M/1024).
+// TIMER3
+TIMER3 can be utilized by the RNG module to trigger the generation and
+transmission of random bytes at regular intervals, with a maximum interval of
+4194 ms, determined by 2**16/(16M/1024).
+
+Additionaly, it serves as a chronometer and can raise interrupts at specified
+intervals. It is also employed by peripherals for custom applications on
+specific ports, including PWM, trigger output, and sound generation -- refer to
+rava_peripherals for further details.
 
 // TIMER4
 TIMER4 is dedicated to provide the PWM signal used by the boost converter module
 which converts the 5V USB input into a higher voltage used to create the
-avalanche noise -- see rava_pwm for more details.
+avalanche noise -- see rava_pwm_boost for more details.
 
 It configures the PLL Postcaler Factor to run clk_USB and clk_TMR at 48MHz.
 
 // WDT
-WDT functions as a 60Hz clock -- see rava_led and rava_lamp for more details.
+WDT functions as a 60Hz clock -- see rava_led for more details.
 */
 
 #ifndef RAVA_TIMERS_H
@@ -63,6 +69,7 @@ WDT functions as a 60Hz clock -- see rava_led and rava_lamp for more details.
 #include <stdint.h>
 
 #define TIMER3_MAXIMUM_DELAY_MS 4194
+#define TIMER13_SOUND_VOLUME_DUTYC_MAX 100.
 
 enum TIMERS013_CLOCK {
   TIMER013_CLK_OFF,
@@ -81,7 +88,13 @@ enum TIMER4_CLOCK {
   TIMER4_CLK_DIV_2,
   TIMER4_CLK_DIV_4,
   TIMER4_CLK_DIV_8,
-  TIMER4_CLK_DIV_16
+  TIMER4_CLK_DIV_16,
+  TIMER4_CLK_DIV_32,
+  TIMER4_CLK_DIV_64,
+  TIMER4_CLK_DIV_128,
+  TIMER4_CLK_DIV_256,
+  TIMER4_CLK_DIV_512,
+  TIMER4_CLK_DIV_1024
 };
 
 enum WDT_CLOCK {
@@ -117,25 +130,39 @@ class TIMER1
 
     void reset_counter();
     uint8_t read_counter();
+
+    uint16_t setup_clock(uint16_t interval_ms);
+    void setup_interrupt(uint16_t interval_ms, uint8_t interrupt_ch);
+
+    void setup_pwm_pb5(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
+    void setup_pwm_pb7(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
 };
 
 class TIMER3
 {
   public:
     void reset();
+
+    void start_chronometer();
+    float stop_chronometer();
+
     uint16_t setup_clock(uint16_t interval_ms);
-    void setup_rng_interrupt(uint16_t interval_ms);
-    void setup_trigger_output(uint16_t interval_ms);
-    void setup_pwm(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
-    void setup_input_capture();
+    void setup_interrupt(uint16_t interval_ms, uint8_t interrupt_ch);
+
+    void setup_pwm_pc6(uint8_t freq_prescaler, uint16_t top, uint16_t duty);
+    void setup_trigger_output_pc6(uint16_t interval_ms);
+    void setup_input_capture_pc7();
+
+    volatile uint16_t overflow_n = 0;
 };
 
 class TIMER4
 {
   public:
     void reset();
-    void setup_pll();
-    void setup_pwm(uint8_t freq_prescaler, uint8_t top, uint8_t duty);
+    void setup_pll_48mhz();
+
+    void setup_pwm_pb6(uint8_t freq_prescaler, uint8_t top, uint8_t duty);
 };
 
 class WDT

@@ -44,23 +44,14 @@ void HEALTH_STARTUP::run_tests()
   bool success = true;
 
   // Pulse count average
-  if (led)
-    led->set_color(COLOR_PURPLE, 127);  // Purple color mid intensity during test
-
   success &= test_pulse_count_average();
 
   // Bias
-  if (led)
-    led->set_color(COLOR_PURPLE, 255);  // Purple color high intensity during test
-
   success &= test_bias();
 
-  // Inform result by light
-  if (led) {
-    if (success)
-      led->set_color(COLOR_RED, 0); // Success, light off
-    else
-      led->set_color(COLOR_RED, 255); // Failure, red light
+  // Inform error via LED
+  if ((led) && (success == false)) {
+      led->set_color(COLOR_RED, 255); // Failure = red light
   }
 
   result = success;
@@ -77,8 +68,7 @@ void HEALTH_STARTUP::send_results()
   uint8_t pc_diff_avg_n_bytes = 13;
   uint8_t bias_bit_n_bytes = 13;
   uint8_t bias_byte_n_bytes = 13;
-  comm->write_msg_header(COMM_HEALTH_STARTUP_RESULTS, (uint8_t)result, pc_avg_n_bytes, pc_diff_avg_n_bytes,
-                         bias_bit_n_bytes, bias_byte_n_bytes);
+  comm->write_msg_header(COMM_HEALTH_STARTUP_RESULTS, (uint8_t)result, pc_avg_n_bytes, pc_diff_avg_n_bytes, bias_bit_n_bytes, bias_byte_n_bytes);
 
   // Pulse Count
   comm->write((uint8_t)pc_result);
@@ -238,11 +228,11 @@ HEALTH_CONTINUOUS::HEALTH_CONTINUOUS()
   nap_cutoff = H_CONTINUOUS_ADAPTIVE_PROPORTION_CUTOFF;
 }
 
-void HEALTH_CONTINUOUS::run_tests(const uint8_t* const rng_a, const uint8_t* const rng_b)
+void HEALTH_CONTINUOUS::run_tests(const uint8_t* const rnd_a, const uint8_t* const rnd_b)
 {
   // Clone rng data ; the original data cannot be modified
-  m_rng_a = *rng_a;
-  m_rng_b = *rng_b;
+  _rnd_a = *rnd_a;
+  _rnd_b = *rnd_b;
 
   // Run tests
   nist_repetition_count();
@@ -277,26 +267,28 @@ void HEALTH_CONTINUOUS::send_errors()
 void HEALTH_CONTINUOUS::nist_repetition_count()
 {
   // RNG A
-  if (m_rng_a == m_rng_prev_a) {
+  if (_rnd_a == _rnd_prev_a) {
     nrc_counter_a++;
 
-    if (nrc_counter_a >= nrc_cutoff)
-      nrc_error_a++; // Count error on rng_a
+    if (nrc_counter_a >= nrc_cutoff) {
+      nrc_error_a++; // Count error on rnd_a
+    }
   }
   else {
-    m_rng_prev_a = m_rng_a;
+    _rnd_prev_a = _rnd_a;
     nrc_counter_a = 1;
     }
 
   // RNG B
-  if (m_rng_b == m_rng_prev_b) {
+  if (_rnd_b == _rnd_prev_b) {
     nrc_counter_b++;
 
-    if (nrc_counter_b >= nrc_cutoff)
-      nrc_error_b++; // Count error on rng_b
+    if (nrc_counter_b >= nrc_cutoff) {
+      nrc_error_b++; // Count error on rnd_b
+    }
   }
   else {
-    m_rng_prev_b = m_rng_b;
+    _rnd_prev_b = _rnd_b;
     nrc_counter_b = 1;
     }
 }
@@ -305,16 +297,16 @@ void HEALTH_CONTINUOUS::nist_adaptive_proportion()
 {
   // RNG A
   if (nap_iter_a == 0) {
-    nap_target_a = m_rng_a;
+    nap_target_a = _rnd_a;
     nap_counter_a = 1;
     nap_iter_a++;
   }
   else {
-    if (m_rng_a == nap_target_a) {
+    if (_rnd_a == nap_target_a) {
       nap_counter_a++;
 
       if (nap_counter_a == nap_cutoff)
-        nap_error_a++; // Count error on rng_a
+        nap_error_a++; // Count error on rnd_a
     }
 
     nap_iter_a++;
@@ -324,16 +316,16 @@ void HEALTH_CONTINUOUS::nist_adaptive_proportion()
 
   // RNG B
   if (nap_iter_b == 0) {
-    nap_target_b = m_rng_b;
+    nap_target_b = _rnd_b;
     nap_counter_b = 1;
     nap_iter_b++;
   }
   else {
-    if (m_rng_b == nap_target_b) {
+    if (_rnd_b == nap_target_b) {
       nap_counter_b++;
 
       if (nap_counter_b == nap_cutoff)
-        nap_error_b++; // Count error on rng_b
+        nap_error_b++; // Count error on rnd_b
     }
 
     nap_iter_b++;

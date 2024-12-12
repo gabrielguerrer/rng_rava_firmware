@@ -131,10 +131,12 @@ float ADC_COMP::read_adc_volts(uint8_t ref_5v, uint8_t oversampling_n_bits)
 
   // Reference
   float ref_volts;
-  if (ref_5v)
+  if (ref_5v) {
     ref_volts = 4.84; // USB 5V after the fuse
-  else
+  }
+  else {
     ref_volts = 2.56;
+  }
 
   // Convert to Volts and return
   float adc_read_v = (float)adc_read * ref_volts;

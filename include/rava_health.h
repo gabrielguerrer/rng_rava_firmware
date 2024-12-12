@@ -83,7 +83,7 @@ class HEALTH_CONTINUOUS
   public:
     HEALTH_CONTINUOUS();
 
-    void run_tests(const uint8_t* const rng_a, const uint8_t* const rng_b);
+    void run_tests(const uint8_t* const rnd_a, const uint8_t* const rnd_b);
     void reset_errors();
     void send_errors();
 
@@ -91,8 +91,8 @@ class HEALTH_CONTINUOUS
     void nist_repetition_count();
     void nist_adaptive_proportion();
 
-    uint8_t m_rng_a, m_rng_b;
-    uint8_t m_rng_prev_a=0, m_rng_prev_b=0;
+    uint8_t _rnd_a, _rnd_b;
+    uint8_t _rnd_prev_a=0, _rnd_prev_b=0;
 
     // Repetition count vars
     uint8_t nrc_cutoff;

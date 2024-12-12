@@ -53,27 +53,6 @@ void DEVICE::send_serial_number()
     comm->write(sn, 8);
 }
 
-float DEVICE::get_temperature()
-{
-  // Get internal temperature reading in millivolts
-  float temp_v = adc_comp->read_adc_chtemp_volts();
-
-  // Read conversion parameters stored in the EEPROM
-  uint16_t temp_slope;
-  int16_t temp_intercept;
-  eeprom->read_device(&temp_slope, &temp_intercept);
-
-  // Convert V to Celcius degrees
-  float temp = temp_v * temp_slope + temp_intercept;
-  return temp;
-}
-
-void DEVICE::send_temperature()
-{
-  float temp = get_temperature();
-  comm->write_msg_header(COMM_DEVICE_TEMPERATURE, temp);
-}
-
 int16_t DEVICE::get_free_ram()
 {
   extern int16_t __heap_start, *__brkval;

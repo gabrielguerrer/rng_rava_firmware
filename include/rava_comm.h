@@ -5,11 +5,10 @@
  */
 
 /*
-/*
-The comm module defines the serial protocol utilized to control the RAVA device 
-through the CDC driver established by Arduino's Serial class. It implements a 
-leader/follower design, wherein a leader device initiates communication by issuing 
-requests that prompt the RAVA device to respond accordingly.
+The comm module defines the serial protocol utilized to control the RAVA device
+through the CDC driver established by Arduino's Serial class. It implements a
+leader/follower design, wherein a leader device initiates communication by 
+issuing requests that prompt the RAVA device to respond accordingly.
 
 Since the primary task of the device is to transmit random bytes within the
 range of 0 to 255, the use of message-ending characters is impractical. Instead,
@@ -46,7 +45,6 @@ the USB connection (class COMM_USB) and the USART interface (class COMM_SERIAL).
 
 enum RAVA_COMMAND_IDS {
   COMM_DEVICE_SERIAL_NUMBER=1,
-  COMM_DEVICE_TEMPERATURE,
   COMM_DEVICE_FREE_RAM,
   COMM_DEVICE_REBOOT,
   COMM_DEVICE_DEBUG,
@@ -54,59 +52,66 @@ enum RAVA_COMMAND_IDS {
   COMM_EEPROM_RESET_TO_DEFAULT=10,
   COMM_EEPROM_DEVICE,
   COMM_EEPROM_FIRMWARE,
-  COMM_EEPROM_PWM,
+  COMM_EEPROM_PWM_BOOST,
   COMM_EEPROM_RNG,
   COMM_EEPROM_LED,
   COMM_EEPROM_LAMP,
 
-  COMM_PWM_SETUP = 30,
+  COMM_PWM_BOOST_SETUP = 20,
 
-  COMM_RNG_SETUP=40,
+  COMM_RNG_SETUP=30,
   COMM_RNG_PULSE_COUNTS,
   COMM_RNG_BITS,
   COMM_RNG_BYTES,
   COMM_RNG_TIMING_DEBUG_D1,
 
-  COMM_RNG_INT8S = 50,
+  COMM_RNG_INT8S = 40,
   COMM_RNG_INT16S,
   COMM_RNG_FLOATS,
 
-  COMM_RNG_STREAM_START = 60,
+  COMM_RNG_STREAM_START = 50,
   COMM_RNG_STREAM_STOP,
   COMM_RNG_STREAM_BYTES,
   COMM_RNG_STREAM_STATUS,
 
-  COMM_HEALTH_STARTUP_RUN = 70,
+  COMM_HEALTH_STARTUP_RUN = 60,
   COMM_HEALTH_STARTUP_RESULTS,
   COMM_HEALTH_CONTINUOUS_ERRORS,
 
-  COMM_LED_COLOR = 80,
+  COMM_LED_STATUS = 70,
+  COMM_LED_COLOR,
+  COMM_LED_INTENSITY,
+
+  COMM_LED_FADE_STOP = 80,
   COMM_LED_COLOR_FADE,
   COMM_LED_COLOR_OSCILLATE,
-  COMM_LED_INTENSITY,
   COMM_LED_INTENSITY_FADE,
-  COMM_LED_FADE_STOP,
-  COMM_LED_STATUS,
 
   COMM_LAMP_MODE = 90,
   COMM_LAMP_STATISTICS,
   COMM_LAMP_DEBUG,
 
-  COMM_PERIPH_MODE=100,
+  COMM_PERIPH_MODE = 100,
   COMM_PERIPH_READ,
   COMM_PERIPH_WRITE,
   COMM_PERIPH_PULSE,
 
-  COMM_PERIPH_D1_TRIGGER_INPUT=110,
+  COMM_PERIPH_D1_TRIGGER_INPUT = 110,
   COMM_PERIPH_D1_COMPARATOR,
   COMM_PERIPH_D1_DELAY_US_TEST,
-  COMM_PERIPH_D2_TIMER3_INPUT_CAPTURE,
-  COMM_PERIPH_D3_TIMER3_TRIGGER_OUTPUT,
-  COMM_PERIPH_D3_TIMER3_PWM,
-  COMM_PERIPH_D4_PIN_CHANGE,
-  COMM_PERIPH_D5_ADC,
 
-  COMM_INTERFACE_DS18B20=130
+  COMM_PERIPH_D2_TIMER3_INPUT_CAPTURE = 120,
+
+  COMM_PERIPH_D3_TIMER3_TRIGGER_OUTPUT = 130,
+  COMM_PERIPH_D3_TIMER3_PWM,
+  COMM_PERIPH_D3_TIMER3_SOUND,
+  COMM_PERIPH_D3_TIMER4_SOUND,
+
+  COMM_PERIPH_D4_PIN_CHANGE = 140,
+
+  COMM_PERIPH_D5_ADC = 150,
+
+  COMM_INTERFACE_DS18B20 = 160
 };
 
 class COMM

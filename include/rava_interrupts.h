@@ -15,39 +15,63 @@ implement their specific needs.
 #ifndef RAVA_INTERRUPTS_H
 #define RAVA_INTERRUPTS_H
 
-#include <avr/io.h>
-
 #include <rava_config.h>
 #include <rava_rng.h>
 #include <rava_led.h>
 #include <rava_lamp.h>
+#include <rava_timers.h>
 #include <rava_peripherals.h>
 
 extern RNG* rng;
 extern LED* led;
 extern LAMP* lamp;
+extern TIMER3* timer3;
 extern D1* d1;
 extern D2* d2;
 extern D3* d3;
 extern D4* d4;
 extern D5* d5;
 
-// Used by RNG bytes stream
-ISR (TIMER3_COMPA_vect)
-{
-  rng->stream_cfg.triggered = true;
-}
 
-// Used by LED and LAMP tick functions
+// WDT
 ISR (WDT_vect)
 {
+  // LED clock
   #if defined(FIRMWARE_LED_ENABLED)
   led->tick_increment();
   #endif
+}
 
+// Timer1
+ISR (TIMER1_COMPA_vect)
+{
+}
+
+ISR (TIMER1_COMPB_vect)
+{
+}
+
+ISR (TIMER1_COMPC_vect)
+{
+}
+
+// Timer3
+ISR (TIMER3_COMPA_vect)
+{
+  // RNG Bytes Stream
+  rng->stream_cfg.triggered = true;
+}
+
+ISR (TIMER3_COMPB_vect)
+{
+  // LAMP clock
   #if defined(FIRMWARE_LED_ENABLED) && defined(FIRMWARE_LAMP_ENABLED)
   lamp->tick_increment();
   #endif
+}
+
+ISR (TIMER3_COMPC_vect)
+{
 }
 
 /////////////////////////////
@@ -64,7 +88,7 @@ ISR (TIMER3_CAPT_vect)
 // D2::setup_timer3_input_capture()
 ISR (TIMER3_OVF_vect)
 {
-  d2->timer3_overflow_n += 1;
+  timer3->overflow_n += 1;
 }
 
 // D1::setup_trigger_input()

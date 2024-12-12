@@ -22,12 +22,7 @@ EEPROM in the event of a memory reset.
 #ifndef RAVA_CONFIG_H
 #define RAVA_CONFIG_H
 
-#include <rava_pwm.h>
-
-/////////////////////////////
-// HARDWARE
-
-#define RAVA_HARDWARE_VERSION_1_0 // To be used in the future
+#include <rava_pwm_boost.h>
 
 /////////////////////////////
 // USB CONFIG
@@ -43,7 +38,7 @@ EEPROM in the event of a memory reset.
 // FIRMWARE
 
 // VERSION
-# define FIRMWARE_VERSION_MAJOR 1
+# define FIRMWARE_VERSION_MAJOR 2
 # define FIRMWARE_VERSION_MINOR 0
 # define FIRMWARE_VERSION_PATCH 0
 
@@ -60,18 +55,20 @@ EEPROM in the event of a memory reset.
 
 /////////////////////////////
 // RAVA DEFAULT PARAMETERS
-// Written on the first boot to the EEPROM. See rava_eeprom.h/cpp
+// Written on the first boot to the EEPROM (see rava_eeprom.h/cpp)
 
-#define DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_SLOPE 397
-#define DEFAULT_DEVICE_TEMPERATURE_CALIBRATION_INTERCEPT -280
-
-#define DEFAULT_PWM_FREQ_ID PWM_FREQ_50_KHZ
-#define DEFAULT_PWM_DUTY 20
+#define DEFAULT_PWM_BOOST_FREQ_ID PWM_BOOST_FREQ_50_KHZ
+#define DEFAULT_PWM_BOOST_DUTY 20
 
 #define DEFAULT_RNG_SAMPLING_INTERVAL_US 10
 
-#define DEFAULT_LAMP_EXP_DURATION_MAX_MS 300000 // 5 min
-#define DEFAULT_LAMP_EXP_Z_SIGNIFICANT 3.925
-#define DEFAULT_LAMP_FEDBMAG_SMOOTH_NTRIALS 20
+#define DEFAULT_LED_N 16
+
+#define DEFAULT_LAMP_EXP_MOVWIN_N_TRIALS 600 // Last 30s
+#define DEFAULT_LAMP_EXP_DELTAHITS_SIGEVT 94 // Targeting 6 evt per hour
+#define DEFAULT_LAMP_EXP_DURATION_MAX_S 300 // 5min
+#define DEFAULT_LAMP_FEDBMAG_SMOOTH_NTRIALS 70
+#define DEFAULT_LAMP_FEDBMAG_COLORCHANGE_TRESHOLD 207 // Start changing color when |z|>1.315
+#define DEFAULT_LAMP_SOUND_VOLUME 153 // 60%
 
 #endif
