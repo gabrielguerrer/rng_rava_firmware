@@ -1,0 +1,24 @@
+{
+  "name": "LUFA",
+  "keywords": "avr, usb",
+  "description": "LUFA - the Lightweight USB Framework for AVRs.",
+  "homepage": "http://www.lufa-lib.org/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/abcminiuser/lufa.git"
+  },
+  "version": "170418",
+  "license": "MIT",
+  "authors": {
+    "name": "Dean Camera",
+    "email": "dean [at] fourwalledcubicle [dot] com"
+  },
+  "frameworks": "*",
+  "platforms": "atmelavr",
+  "build": {
+    "libArchive": false,
+    "srcDir": ".",
+    "includeDir": ".",
+    "srcFilter": "-<*> +<Drivers/**/*.c>"
+  }
+}
