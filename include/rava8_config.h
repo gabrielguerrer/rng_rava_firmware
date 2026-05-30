@@ -24,9 +24,9 @@ extern "C" {
 
 #define HEALTH_STARTUP_ENABLED    // Enable Health startup code
 #define HEALTH_CONTINUOUS_ENABLED // Enable Health continuous code
-#define COMM_USART_ENABLED        // Enable USART interface
-#define PERIPHERALS_ENABLED       // Enable Peripherals functionality
-#define RNG_TIMING_DEBUG_ENABLED  // Enable monitoring byte generation timing
+// #define COMM_USART_ENABLED        // Enable USART interface
+// #define PERIPHERALS_ENABLED       // Enable Peripherals functionality
+// #define RNG_TIMING_DEBUG_ENABLED  // Enable monitoring byte generation timing
 
 #ifdef __cplusplus
 }

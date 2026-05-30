@@ -2,16 +2,12 @@
   "name": "RAVA_RNG",
   "keywords": "RAVA, RNG, random number generator, open source",
   "description": "The RAVA_RNG library implements the functionality shared by all hardware implementation of the RAVA circuit architecture",
-  "homepage": "http://www.rava-rng.org/",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/gabrielguerrer/rng_rava_firmware.git"
-  },
+  "homepage": "http://rava-rng.org/",
   "version": "1.0.0",
   "license": "MIT",
   "authors": {
     "name": "Gabriel Guerrer",
-    "homepage" : "http://www.gabrielguerrer.com/"    
+    "homepage" : "http://gabrielguerrer.com/"    
   },
   "frameworks": "*",
   "platforms": "atmelavr",

@@ -25,4 +25,4 @@ application, a source file containing `main()` must be provided. Additionally, a
 `rava8_config.h` must be supplied to define the compile-time feature configuration.
 
 For a reference implementation see 
-[RAVA8 Firmware](https://github.com/gabrielguerrer/rng_rava_firmware).
+[RAVA8 Firmware](https://github.com/gabrielguerrer/rava8_rng_firmware).

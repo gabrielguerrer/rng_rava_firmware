@@ -9,8 +9,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 This repository contains the firmware implementation of the ATmega32U4 microcontroller as a 
-[RAVA8 Device](https://github.com/gabrielguerrer/rng_rava), with the name *RAVA8* referring to the 
-microcontroller's 8-bit architecture.
+[RAVA8 Device](https://github.com/gabrielguerrer/rava8_rng).
 
 The firmware is built on top of the `RAVA_RNG` and `RAVA8_RNG` libraries. The `RAVA_RNG` library 
 provides the functionality shared across all hardware implementations of the RAVA circuit 
@@ -31,10 +30,10 @@ In addition to the base functionality, `RAVA8_RNG` also provides:
 
 To control and communicate with the RAVA Device from the host side, see the available driver 
 projects:
-- [RAVA Python Driver](https://github.com/gabrielguerrer/rng_rava_driver_py)
+- [RAVA Python Driver](https://github.com/gabrielguerrer/rava_driver_py)
 
 Hardware source files, including schematics and PCB layouts:
-- [RAVA8 Device](https://github.com/gabrielguerrer/rng_rava)
+- [RAVA8 Device](https://github.com/gabrielguerrer/rava8_rng)
 
 ## Requirements
 
@@ -131,18 +130,18 @@ The RAVA firmware is developed and compiled using
 - [Install git](https://git-scm.com/install/)
 
 To build the firmware:
-1. Find the [desired version](https://github.com/gabrielguerrer/rng_rava_firmware/releases)
+1. Find the [desired version](https://github.com/gabrielguerrer/rava8_rng_firmware/releases)
 2. Download the firmware. In the following example, version 3.0.0 is cloned:
    ```
-   git clone --branch 3.0.0 --depth 1 https://github.com/gabrielguerrer/rng_rava_firmware.git
+   git clone --branch 3.0.0 --depth 1 https://github.com/gabrielguerrer/rava8_rng_firmware.git
    ```
-3. Open VS Code and navigate to: File → Open Folder. Then select the `rng_rava_firmware` directory
+3. Open VS Code and navigate to: File → Open Folder. Then select the `rava8_rng_firmware` directory
 4. When opening the project for the first time, PlatformIO automatically downloads the required 
    toolchains and dependencies
 5. Click the PlatformIO icon in the VS Code sidebar and select "Build"
 
 After a successful compilation, the generated firmware file can be found at: 
-`rng_rava_firmware/.pio/build/ATmega32U4/firmware.hex`
+`rava8_rng_firmware/.pio/build/ATmega32U4/firmware.hex`
 
 As an alternative to compiling the firmware from source, users can download the precompiled 
 `firmware.hex` file provided in this repository. The precompiled firmware includes health tests and 
@@ -156,7 +155,7 @@ themselves.
 To upload new firmware through the USB port, the ATmega32U4 bootloader must first be activated.
 
 According to the default fuse configuration used in the RAVA8 circuit 
-(`lfuse=0xff hfuse=0xd9 efuse=0xf0 lock=0xce`), firmware updates can only be performed through the 
+(`lfuse=0xff hfuse=0xd9 efuse=0xf3 lock=0xce`), firmware updates can only be performed through the 
 bootloader application. Furthermore, the bootloader itself can only be entered through a hardware 
 reset of the MCU, ensuring that physical access to the device is required for firmware updates.
 
@@ -169,7 +168,7 @@ that the bootloader is running and ready to receive firmware updates.
 
 If the bootloader is missing or has been corrupted, instructions for reinstalling the bootloader 
 and restoring the fuse configuration can be found in the 
-[RAVA8 Device](https://github.com/gabrielguerrer/rng_rava_firmware) documentation.
+[RAVA8 Device](https://github.com/gabrielguerrer/rava8_rng#documentation) documentation.
 
 The following sections describe how to upload the firmware binary on different operating systems. 
 All procedures assume that the RAVA device is connected through USB and already running the 
@@ -234,6 +233,6 @@ Program, and Verify labels.
 
 # Contact
 
-[gabrielguerrer.com](https://gabrielguerrer.com])
+[gabrielguerrer.com](https://gabrielguerrer.com/en/gabriel/)
 
-[![RAVA logo](https://github.com/gabrielguerrer/rng_rava/blob/main/images/rng_rava_logo.png)](https://rava-rng.org)
+[![RAVA logo](images/rng_rava_logo.png)](https://rava-rng.org)

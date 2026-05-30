@@ -2,48 +2,42 @@
 
 This release introduces a major rework of the firmware architecture. While the underlying 
 randomness generation mechanism remains unchanged, the new design improves communication 
-reliability through a more formal implementation of a framed binary protocol and enhances  
-modularity by moving generic functionality into the RAVA_RNG library. 
+reliability through a more formal implementation of a framed binary protocol and enhances 
+modularity by separating functionality into the `RAVA_RNG` and `RAVA8_RNG` libraries. 
 
-The RAVA_RNG library provides the features shared across different implementations of the RAVA 
-architecture, facilitating the development of RAVA-based devices on other microcontroller 
-platforms.
+The `RAVA_RNG` library implements the functionality shared by all hardware implementation of the
+RAVA architecture, facilitating the development of RAVA-based devices across different 
+microcontroller platforms. The `RAV8_RNG` library provides ATmega32U4-specific implementation and 
+replaces the Arduino framework with the LUFA library, enabling lower-level hardware access and 
+greater control over communication interfaces.
 
-Code specific to the ATmega32U4 implementation is identified with the rava8 prefix, referring to 
-the microcontroller’s 8-bit architecture.
-
-Additionally, the firmware now uses the LUFA Library instead of the Arduino framework, providing 
-lower-level hardware access and greater control over communication interfaces.
-
-Finally, the project was migrated from C++ to C, facilitating integration into other projects.
+In addition, the entire project has been migrated from C++ to C, facilitating integration into 
+other projects.
 
 ### New
-- Introduces the RAVA_RNG library, which provides the functionality shared across different 
-  hardware implementations of the RAVA architecture
-- Implements a framed binary communication protocol with state parser evaluated per byte 
-- The protocol now reports different COMM_ERROR_IDS errors that may occur during the communication 
-  decoding process
-- Replaces the previous Arduino-based implementation with a lower-level architecture based on the 
-  LUFA library
+- Introduces the `RAVA_RNG` and `RAVA8_RNG` libraries
+- Implements a framed binary communication protocol with byte-wise state parsing
+- Added protocol-level error reporting through dedicated `COMM_ERROR_IDS` codes
+- Replaced the Arduino framework with a lower-level architecture based on the LUFA library
+- Added support for both USB CDC and USART communication interfaces through a unified abstraction 
+  layer
+- Introduced floating-point number generation using Allen Downey's algorithm
 
 ### Changed
-- Renamed the ATmega32U4 implementation to RAVA8
-- Migrated from C++ to C language
-- USB CDC and USART communication interfaces implemented through LUFA
-- Removed the LED and LAMP modules, which will be maintained in a separate repository
-- Command parsing now uses lookup-table handlers instead of switch-case conditions
-- Documentation improved, with each function now accompanied by a descriptive comment
-
-- Timer 0 fully dedicated
-- ADC operated via LUFA
-- device provides temperature and Vcc
-- EEPROM: pwm boost and rng sampling size united in one single command
-- Removed Von Neumann post-processing (slow and overly conservative)
+- Reorganized the firmware into platform-independent and platform-specific libraries
+- Migrated the codebase from C++ to C
+- Replaced switch-case command parsing with a lookup-table handler architecture
+- Improved code documentation, with descriptive comments added throughout the codebase
+- Dedicated Timer 0 exclusively to randomness generation
+- Unified EEPROM configuration of PWM boost and RNG sampling size into a single command
+- Removed Von Neumann post-processing, which was unnecessarily conservative for the RAVA 
+  architecture
+- Removed the LED and LAMP modules; these will now be maintained in a separate repository
 
 ### Fixed
-- Fixed a bug in floating-point number generation where only 2 random bytes were previously used 
-  instead of the required 3
-- More efficient code for int8 and int16 generation
+- Corrected a bug in floating-point number generation where only two random bytes were used instead 
+  of the required three
+- Improved the efficiency of int8 and int16 random number generation
 
 
 ## v2.0.0
