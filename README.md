@@ -235,4 +235,4 @@ Program, and Verify labels.
 
 [gabrielguerrer.com](https://gabrielguerrer.com/en/gabriel/)
 
-[![RAVA logo](images/rng_rava_logo.png)](https://rava-rng.org)
+[![RAVA logo](https://github.com/gabrielguerrer/rava8_rng/blob/main/images/rng_rava_logo.png)](https://rava-rng.org)
