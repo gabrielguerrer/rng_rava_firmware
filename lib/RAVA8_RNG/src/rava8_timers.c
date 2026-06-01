@@ -497,9 +497,9 @@ void wdt_reboot_device(void)
   // Watchdog Change Enable
   WDTCSR = _BV(WDCE) | _BV(WDE);
 
-	// System Reset Enable
+  // System Reset Enable
   WDTCSR = _BV(WDE);
 
   // Enable Interrupts
-	sei();
+  sei();
 }

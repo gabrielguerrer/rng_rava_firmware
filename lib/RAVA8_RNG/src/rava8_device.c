@@ -52,10 +52,10 @@ void device_delay_us(uint16_t us)
   us -= 5;
 
   // Busy Wait; Four cycles per iteration
-	__asm__ __volatile__ (
-		"1: sbiw %0,1" "\n\t"
-		"brne 1b" : "=w" (us) : "0" (us)
-	);
+  __asm__ __volatile__ (
+    "1: sbiw %0,1" "\n\t"
+    "brne 1b" : "=w" (us) : "0" (us)
+  );
 }
 
 /*

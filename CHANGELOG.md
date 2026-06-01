@@ -11,14 +11,16 @@ microcontroller platforms. The `RAV8_RNG` library provides ATmega32U4-specific i
 replaces the Arduino framework with the LUFA library, enabling lower-level hardware access and 
 greater control over communication interfaces.
 
-In addition, the entire project has been migrated from C++ to C, facilitating integration into 
-other projects.
+In addition, the entire project has been migrated from C++ to C, simplifying integration with other 
+projects. The Arduino framework, previously used primarily to implement USB CDC communication, has 
+been replaced by the LUFA library, providing lower-level hardware access and greater control over 
+communication interfaces.
 
 ### New
 - Introduces the `RAVA_RNG` and `RAVA8_RNG` libraries
 - Implements a framed binary communication protocol with byte-wise state parsing
 - Added protocol-level error reporting through dedicated `COMM_ERROR_IDS` codes
-- Replaced the Arduino framework with a lower-level architecture based on the LUFA library
+- Migrated from the Arduino framework to the LUFA library
 - Added support for both USB CDC and USART communication interfaces through a unified abstraction 
   layer
 - Introduced floating-point number generation using Allen Downey's algorithm

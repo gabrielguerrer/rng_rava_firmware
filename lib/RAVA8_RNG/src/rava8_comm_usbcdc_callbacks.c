@@ -31,7 +31,7 @@ Event handler for the library USB Configuration Changed event
 */
 void EVENT_USB_Device_ConfigurationChanged(void)
 {
-	CDC_Device_ConfigureEndpoints(&lufa_usbcdc_if);
+  CDC_Device_ConfigureEndpoints(&lufa_usbcdc_if);
 }
 
 /*
@@ -39,24 +39,24 @@ Event handler for the library USB Control Request reception event
 */
 void EVENT_USB_Device_ControlRequest(void)
 {
-	CDC_Device_ProcessControlRequest(&lufa_usbcdc_if);
+  CDC_Device_ProcessControlRequest(&lufa_usbcdc_if);
 
-	/*
-	Unforntunatelly this didn't work. Device wakes up, but the ability to receive and send bytes is
-	lost afterward.
+  /*
+  Unforntunatelly this didn't work. Device wakes up, but the ability to receive and send bytes is
+  lost afterward.
 
-	// USB enumeration completed?
-	if (USB_DeviceState == DEVICE_STATE_Configured) {
+  // USB enumeration completed?
+  if (USB_DeviceState == DEVICE_STATE_Configured) {
 
-		// Enables interrupt to wake the device whenever the host sends data
-		Endpoint_SelectEndpoint(CDC_RX_EPADDR);
-		UEIENX |= _BV(RXOUTE);
+    // Enables interrupt to wake the device whenever the host sends data
+    Endpoint_SelectEndpoint(CDC_RX_EPADDR);
+    UEIENX |= _BV(RXOUTE);
 
-		// Enter idle sleep mode, which stops the CPU clock
-		set_sleep_mode(SLEEP_MODE_IDLE);
-		sleep_mode();
-	}
-	*/
+    // Enter idle sleep mode, which stops the CPU clock
+    set_sleep_mode(SLEEP_MODE_IDLE);
+    sleep_mode();
+  }
+  */
 }
 
 /*
@@ -83,5 +83,5 @@ from the host.
 */
 void EVENT_CDC_Device_ControLineStateChanged(USB_ClassInfo_CDC_Device_t *const CDCInterfaceInfo)
 {
-	// bool host_ready = (CDCInterfaceInfo->State.ControlLineStates.HostToDevice & CDC_CONTROL_LINE_OUT_DTR) != 0;
+  // bool host_ready = (CDCInterfaceInfo->State.ControlLineStates.HostToDevice & CDC_CONTROL_LINE_OUT_DTR) != 0;
 }
